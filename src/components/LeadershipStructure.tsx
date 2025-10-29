@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
 import Spinner from './Spinner';

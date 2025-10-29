@@ -32,8 +32,8 @@ interface HomeProps {
 const Home: React.FC<HomeProps> = ({ setPage, isEditMode, showToast }) => {
     const { data, loading, error } = useData();
 
-    const latestNews = data ? [...data.news].sort((a, b) => b.id - a.id).slice(0, 6) : [];
-    const latestImages = data ? [...data.gallery].sort((a, b) => b.id - a.id).slice(0, 6) : [];
+    const latestNews: NewsItem[] = data ? [...data.news].sort((a, b) => b.id - a.id).slice(0, 6) : [];
+    const latestImages: ImageItem[] = data ? [...data.gallery].sort((a, b) => b.id - a.id).slice(0, 6) : [];
 
     const getTypeClass = (type: NewsItem['type']) => {
         switch (type) {
@@ -44,13 +44,13 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode, showToast }) => {
         }
     };
     
-    const renderLatestItems = (items: any[], type: 'news' | 'gallery') => {
+    const renderLatestItems = (items: (NewsItem | ImageItem)[], type: 'news' | 'gallery') => {
         if (loading) return <div className="w-full h-40 flex justify-center items-center"><Spinner /></div>;
         if (error) return <p className="text-red-500 text-center">Gagal memuat data.</p>;
         if (items.length === 0) return <p className="text-slate-500 text-center">Belum ada konten.</p>;
 
         if (type === 'news') {
-             return items.map(item => (
+             return (items as NewsItem[]).map(item => (
                 <div key={item.id} className="flex-shrink-0 w-80 bg-slate-50 rounded-lg shadow-md p-6 border-l-4 border-brand-gold transform hover:scale-105 transition-transform duration-300">
                     <div className="flex justify-between items-center mb-2">
                         <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${getTypeClass(item.type)}`}>
@@ -66,7 +66,7 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode, showToast }) => {
         if (type === 'gallery') {
             return (
                 <>
-                 {items.map((image) => (
+                 {(items as ImageItem[]).map((image) => (
                     <div key={image.id} className="flex-shrink-0 w-80 h-56 rounded-lg shadow-lg overflow-hidden group">
                         <img 
                           src={image.src} 

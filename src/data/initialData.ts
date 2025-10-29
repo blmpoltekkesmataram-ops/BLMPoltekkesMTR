@@ -64,7 +64,7 @@ export const initialData: PageData = {
         visi: "Mengembangkan Badan Legislatif Mahasiswa sebagai organisasi pionir yang bersinergi menciptakan inovasi, dan menginspirasi melalui peningkatan kerja sama dan kekeluargaan.",
         misi: [
             "Menjalankan setiap tugas dan tanggung jawab BLM berlandaskan iman dan taqwa.",
-            "Menjadikan BLM sebagai mediator dalam berkomunikasi, berdiskusi, serta menampung dan menyalurkan aspirasi.",
+            "Menjadikan BLM sebagai mediator dalam berkomunikasi, berdiskusI, serta menampung dan menyalurkan aspirasi.",
             "Mengembangkan BLM agar dapat menciptakan inovasi, menginspirasi, serta pelayanan terbaik secara konsisten memberikan keberkahan.",
             "Bersinergi bersama untuk mewujudkan aspirasi demi kemajuan Poltekkes Kemenkes Mataram.",
         ]

@@ -36,7 +36,7 @@ export const api = {
     async getData(): Promise<PageData> {
         // FIX: Using .includes() to check for the placeholder string. This avoids a TypeScript error
         // that occurs when comparing two different known string literals with ===.
-        if (API_URL.includes('https://script.google.com/macros/s/AKfycbyLkBNB3Bezq5NFaiLTskjHKAApMJgcMlgvJoQmsy_Q-eVIBYyaSF10Ar-gFGYyzFHpuw/exec')) {
+        if (API_URL.includes('PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE')) {
             console.warn("API URL not configured. Serving empty data. Please edit src/config.ts");
             throw new Error("API URL belum dikonfigurasi. Silakan edit file src/config.ts");
         }
