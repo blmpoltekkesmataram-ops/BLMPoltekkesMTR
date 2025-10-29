@@ -19,13 +19,12 @@ const fileToBase64 = (file: File): Promise<string> =>
 
 const ImageModal: React.FC<{
   image: Partial<ImageItem> | null;
-  onSave: (data: Partial<ImageItem>, file?: File) => Promise<void>;
+  onSave: (data: Partial<ImageItem>, file?: File) => void;
   onClose: () => void;
 }> = ({ image, onSave, onClose }) => {
   const [description, setDescription] = useState(image?.description || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState(image?.src || 'https://via.placeholder.com/600x400.png?text=Pilih+Gambar');
-  const [isSaving, setIsSaving] = useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -35,22 +34,14 @@ const ImageModal: React.FC<{
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!image?.id && !imageFile) {
         alert("Mohon pilih file gambar untuk item baru.");
         return;
     }
-    setIsSaving(true);
     const dataToSave: Partial<ImageItem> = { id: image?.id, description };
-    try {
-        await onSave(dataToSave, imageFile || undefined);
-    } catch (err) {
-        console.error(err);
-        alert("Gagal menyimpan gambar.");
-    } finally {
-        setIsSaving(false);
-    }
+    onSave(dataToSave, imageFile || undefined);
   };
 
   return (
@@ -79,8 +70,8 @@ const ImageModal: React.FC<{
             ></textarea>
           </div>
           <div className="text-right pt-4">
-            <button type="submit" className="bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors duration-300 disabled:bg-slate-400" disabled={isSaving}>
-              {isSaving ? 'Menyimpan...' : (image?.id ? 'Simpan Perubahan' : 'Tambahkan')}
+            <button type="submit" className="bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors duration-300">
+              {image?.id ? 'Terapkan Perubahan' : 'Tambahkan'}
             </button>
           </div>
         </form>
@@ -91,7 +82,7 @@ const ImageModal: React.FC<{
 
 
 const Gallery: React.FC<GalleryProps> = ({ isEditMode, showToast }) => {
-  const { data, loading, error, addGalleryImage, updateGalleryImage, deleteGalleryImage } = useData();
+  const { data, editedData, loading, error, setEditedGallery } = useData();
   const [showModal, setShowModal] = useState(false);
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
   
@@ -106,34 +97,40 @@ const Gallery: React.FC<GalleryProps> = ({ isEditMode, showToast }) => {
   };
 
   const handleSaveImage = async (imageData: Partial<ImageItem>, file?: File) => {
+    if (!editedData) return;
+    
     if (editingImage) { // Editing existing image
-        const updatedImage: Partial<ImageItem> = { ...imageData };
+        let imageUrl = editingImage.src;
         if (file) {
-            updatedImage.src = await fileToBase64(file);
+            imageUrl = await fileToBase64(file);
         }
-        await updateGalleryImage(updatedImage as ImageItem);
-        showToast("Foto berhasil diperbarui!");
+        const newGallery = editedData.gallery.map(img => 
+            img.id === editingImage.id 
+                ? { ...img, src: imageUrl, description: imageData.description || '' } 
+                : img
+        );
+        setEditedGallery(newGallery);
+        showToast("Perubahan foto disimpan sementara.");
     } else { // Adding new image
         if (!file) return;
-        const newImage: Omit<ImageItem, 'id'> = {
+        const newImage: ImageItem = {
+            id: Date.now(),
             src: await fileToBase64(file),
             description: imageData.description || ''
         };
-        await addGalleryImage(newImage);
-        showToast("Foto berhasil ditambahkan!");
+        const newGallery = [newImage, ...editedData.gallery];
+        setEditedGallery(newGallery);
+        showToast("Foto baru ditambahkan sementara.");
     }
     handleCloseModal();
   };
   
-  const handleDeleteImage = async (id: number) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus foto ini?')) {
-        try {
-            await deleteGalleryImage(id);
-            showToast("Foto berhasil dihapus!");
-        } catch (e) {
-            showToast("Gagal menghapus foto.");
-            console.error(e);
-        }
+  const handleDeleteImage = (id: number) => {
+    if (!editedData) return;
+    if (window.confirm('Apakah Anda yakin ingin menghapus foto ini? Perubahan akan disimpan saat Anda menekan "Simpan Semua".')) {
+        const newGallery = editedData.gallery.filter(img => img.id !== id);
+        setEditedGallery(newGallery);
+        showToast("Foto ditandai untuk dihapus.");
     }
   };
 
@@ -158,10 +155,12 @@ const Gallery: React.FC<GalleryProps> = ({ isEditMode, showToast }) => {
     if (error) {
       return <p className="text-center text-red-500">{error}</p>;
     }
+    
+    const displayData = isEditMode ? editedData : data;
 
     return (
        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {data?.gallery.map((image) => (
+          {displayData?.gallery.map((image) => (
             <div key={image.id} className="relative group">
               <EditWrapper>
                 <div className="overflow-hidden rounded-lg shadow-lg bg-white flex flex-col h-full">

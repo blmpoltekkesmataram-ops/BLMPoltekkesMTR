@@ -4,27 +4,27 @@ import { PageData, VisiMisiData, ImageItem, NewsItem, MembersData, LogoPhilosoph
 
 interface DataContextType {
     data: PageData | null;
+    editedData: PageData | null;
     loading: boolean;
+    isSaving: boolean;
     error: string | null;
     refetch: () => void;
-    // Update functions now trigger refetch instead of optimistically updating
-    updateHeroBackground: (base64: string) => Promise<void>;
-    updateVisiMisi: (data: VisiMisiData) => Promise<void>;
-    addGalleryImage: (item: Omit<ImageItem, 'id'>) => Promise<void>;
-    updateGalleryImage: (item: ImageItem) => Promise<void>;
-    deleteGalleryImage: (id: number) => Promise<void>;
-    addNewsItem: (item: Omit<NewsItem, 'id' | 'date'>) => Promise<void>;
-    updateNewsItem: (item: NewsItem) => Promise<void>;
-    deleteNewsItem: (id: number) => Promise<void>;
-    updateLeadership: (data: MembersData) => Promise<void>;
-    updateLogoPhilosophy: (data: LogoPhilosophyData) => Promise<void>;
+    saveAllChanges: () => Promise<void>;
+    setEditedHeroBackground: (base64: string) => void;
+    setEditedVisiMisi: (data: VisiMisiData) => void;
+    setEditedGallery: (gallery: ImageItem[]) => void;
+    setEditedNews: (news: NewsItem[]) => void;
+    setEditedLeadership: (data: MembersData) => void;
+    setEditedLogoPhilosophy: (data: LogoPhilosophyData) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [data, setData] = useState<PageData | null>(null);
+    const [editedData, setEditedData] = useState<PageData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
@@ -33,10 +33,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             const result = await api.getData();
             setData(result);
+            setEditedData(JSON.parse(JSON.stringify(result))); // Deep copy for safe editing
         } catch (err: any) {
             setError(err.message || 'An unknown error occurred.');
-            // Clear data on error to prevent showing stale info
             setData(null);
+            setEditedData(null);
         } finally {
             setLoading(false);
         }
@@ -45,97 +46,61 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         fetchData();
     }, [fetchData]);
-
-    // --- WRAPPER FUNCTIONS ---
-    // Each function now calls the API and then refetches all data for consistency.
-
-    const updateHeroBackground = async (base64: string) => {
-        await api.updateHeroBackground(base64);
-        await fetchData();
-    };
-
-    const updateVisiMisi = async (newData: VisiMisiData) => {
-        await api.updateVisiMisi(newData);
-        await fetchData();
+    
+    const saveAllChanges = async () => {
+        if (!editedData) {
+            throw new Error("Tidak ada data untuk disimpan.");
+        }
+        setIsSaving(true);
+        try {
+            await api.updateAllData(editedData);
+            await fetchData(); // Refetch to sync state with the server
+        } catch (e) {
+            console.error("Gagal menyimpan semua perubahan:", e);
+            throw e; 
+        } finally {
+            setIsSaving(false);
+        }
     };
     
-    const addGalleryImage = async (item: Omit<ImageItem, 'id'>) => {
-        if (!data) throw new Error("Data not loaded");
-        const newItem: ImageItem = { ...item, id: Date.now() };
-        const newGallery = [newItem, ...data.gallery];
-        await api.updateGallery(newGallery);
-        await fetchData();
+    const setEditedHeroBackground = (backgroundImage: string) => {
+        setEditedData(prev => prev ? { ...prev, hero: { ...prev.hero, backgroundImage } } : null);
     };
 
-    const updateGalleryImage = async (item: ImageItem) => {
-        if (!data) throw new Error("Data not loaded");
-        const newGallery = data.gallery.map(i => i.id === item.id ? item : i);
-        await api.updateGallery(newGallery);
-        await fetchData();
+    const setEditedVisiMisi = (visiMisi: VisiMisiData) => {
+        setEditedData(prev => prev ? { ...prev, visiMisi } : null);
+    };
+    
+    const setEditedGallery = (gallery: ImageItem[]) => {
+        setEditedData(prev => prev ? { ...prev, gallery } : null);
     };
 
-    const deleteGalleryImage = async (id: number) => {
-        if (!data) throw new Error("Data not loaded");
-        const newGallery = data.gallery.filter(i => i.id !== id);
-        await api.updateGallery(newGallery);
-        await fetchData();
-    };
-    
-    const addNewsItem = async (item: Omit<NewsItem, 'id' | 'date'>) => {
-        if (!data) throw new Error("Data not loaded");
-        const newItem: NewsItem = { 
-            ...item, 
-            id: Date.now(),
-            date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-        };
-        const newNews = [newItem, ...data.news];
-        await api.updateNews(newNews);
-        await fetchData();
+    const setEditedNews = (news: NewsItem[]) => {
+        setEditedData(prev => prev ? { ...prev, news } : null);
     };
 
-    const updateNewsItem = async (item: NewsItem) => {
-        if (!data) throw new Error("Data not loaded");
-        const newNews = data.news.map(i => i.id === item.id ? {
-            ...item,
-            date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-        } : i);
-        await api.updateNews(newNews);
-        await fetchData();
-    };
-    
-    const deleteNewsItem = async (id: number) => {
-        if (!data) throw new Error("Data not loaded");
-        const newNews = data.news.filter(i => i.id !== id);
-        await api.updateNews(newNews);
-        await fetchData();
-    };
-    
-    const updateLeadership = async (newData: MembersData) => {
-        await api.updateLeadership(newData);
-        await fetchData();
-    };
-    
-    const updateLogoPhilosophy = async (newData: LogoPhilosophyData) => {
-        await api.updateLogoPhilosophy(newData);
-        await fetchData();
+    const setEditedLeadership = (leadership: MembersData) => {
+        setEditedData(prev => prev ? { ...prev, leadership } : null);
     };
 
+    const setEditedLogoPhilosophy = (logoPhilosophy: LogoPhilosophyData) => {
+        setEditedData(prev => prev ? { ...prev, logoPhilosophy } : null);
+    };
 
     const value = {
         data,
+        editedData,
         loading,
+        isSaving,
         error,
         refetch: fetchData,
-        updateHeroBackground,
-        updateVisiMisi,
-        addGalleryImage,
-        updateGalleryImage,
-        deleteGalleryImage,
-        addNewsItem,
-        updateNewsItem,
-        deleteNewsItem,
-        updateLeadership,
-        updateLogoPhilosophy,
+        saveAllChanges,
+        setEditedHeroBackground,
+        setEditedVisiMisi,
+        setEditedGallery,
+        setEditedNews,
+        setEditedLeadership,
+        setEditedLogoPhilosophy
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

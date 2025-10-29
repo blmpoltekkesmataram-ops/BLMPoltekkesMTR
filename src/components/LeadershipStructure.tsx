@@ -7,7 +7,6 @@ import { Member, MembersData } from '../data/initialData';
 
 interface LeadershipStructureProps {
   isEditMode: boolean;
-  showToast: (message: string) => void;
 }
 
 const MemberCard: React.FC<{ member: Member; size?: 'sm' | 'md'; isEditMode: boolean; onEdit: () => void; }> = ({ member, size = 'md', isEditMode, onEdit }) => {
@@ -27,7 +26,7 @@ const MemberCard: React.FC<{ member: Member; size?: 'sm' | 'md'; isEditMode: boo
     );
 
     return (
-        <div className={`relative group [perspective:1000px] ${s.card}`} onClick={isEditMode ? onEdit : undefined}>
+        <div className={`relative group [perspective:1000px] ${s.card}`} onClick={isEditMode ? onEdit : undefined} style={{ cursor: isEditMode ? 'pointer' : 'default' }}>
             <div className={`relative w-full h-full [transform-style:preserve-3d] transition-transform duration-700 ease-in-out ${!isEditMode && 'group-hover:[transform:rotateY(180deg)]'}`}>
                 {/* Front Side */}
                 <div className="absolute w-full h-full [backface-visibility:hidden] bg-white text-center p-3 rounded-lg shadow-lg flex flex-col items-center justify-center">
@@ -81,10 +80,9 @@ const fileToBase64 = (file: File): Promise<string> =>
     reader.onerror = (error) => reject(error);
   });
 
-const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member) => Promise<void>; onClose: () => void; }> = ({ member, onSave, onClose }) => {
+const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member) => void; onClose: () => void; }> = ({ member, onSave, onClose }) => {
   const [formData, setFormData] = useState(member);
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({...prev, [e.target.name]: e.target.value }));
@@ -104,7 +102,6 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
   }
 
   const handleSave = async () => {
-    setIsSaving(true);
     let finalData = { ...formData };
     if (newImageFile) {
         try {
@@ -113,17 +110,10 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
         } catch (err) {
             console.error(err);
             alert("Gagal memproses gambar.");
-            setIsSaving(false);
             return;
         }
     }
-    try {
-        await onSave(finalData);
-    } catch(e) {
-        console.error(e);
-    } finally {
-        setIsSaving(false);
-    }
+    onSave(finalData);
   }
 
   return (
@@ -161,9 +151,7 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
             )}
         </div>
         <div className="text-right pt-6 mt-4 border-t">
-            <button onClick={handleSave} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors disabled:bg-slate-400" disabled={isSaving}>
-                {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
-            </button>
+            <button onClick={handleSave} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors">Terapkan Perubahan</button>
         </div>
       </div>
     </div>
@@ -171,16 +159,16 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
 };
 
 
-const LeadershipStructure: React.FC<LeadershipStructureProps> = ({ isEditMode, showToast }) => {
-    const { data, loading, error, updateLeadership } = useData();
+const LeadershipStructure: React.FC<LeadershipStructureProps> = ({ isEditMode }) => {
+    const { data, editedData, loading, error, setEditedLeadership } = useData();
     const [editingMember, setEditingMember] = useState<Member | null>(null);
 
     const handleEditMember = (member: Member) => {
         setEditingMember(member);
     };
 
-    const handleSaveMember = async (updatedMember: Member) => {
-        if (!data) return;
+    const handleSaveMember = (updatedMember: Member) => {
+        if (!editedData) return;
 
         const updateRecursive = (memberList: Member[]): Member[] => {
             return memberList.map(m => {
@@ -195,19 +183,13 @@ const LeadershipStructure: React.FC<LeadershipStructureProps> = ({ isEditMode, s
         };
         
         const newLeadershipData: MembersData = {
-            top: updateRecursive(data.leadership.top),
-            mid: updateRecursive(data.leadership.mid),
-            commissions: updateRecursive(data.leadership.commissions)
+            top: updateRecursive(editedData.leadership.top),
+            mid: updateRecursive(editedData.leadership.mid),
+            commissions: updateRecursive(editedData.leadership.commissions)
         };
         
-        try {
-            await updateLeadership(newLeadershipData);
-            setEditingMember(null);
-            showToast("Data anggota berhasil diperbarui!");
-        } catch (e) {
-            console.error(e);
-            showToast("Gagal memperbarui data anggota.");
-        }
+        setEditedLeadership(newLeadershipData);
+        setEditingMember(null);
     };
 
     const renderContent = () => {
@@ -222,23 +204,25 @@ const LeadershipStructure: React.FC<LeadershipStructureProps> = ({ isEditMode, s
         if (error) {
             return <p className="text-center text-red-500">{error}</p>;
         }
+        
+        const displayData = isEditMode ? editedData : data;
 
-        if (!data) return null;
+        if (!displayData) return null;
 
         return (
             <div className="max-w-6xl mx-auto">
                 <div className="flex justify-center items-center flex-col">
                 <div className="flex flex-wrap justify-center gap-8">
-                    {data.leadership.top.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
+                    {displayData.leadership.top.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
                 </div>
                 <ConnectingLine />
                 <div className="flex flex-wrap justify-center gap-8">
-                    {data.leadership.mid.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
+                    {displayData.leadership.mid.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
                 </div>
                 <ConnectingLine />
                 <div className="w-full h-px bg-slate-300"></div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12 w-full mt-4">
-                    {data.leadership.commissions.map(commission => <CommissionGroup key={commission.id} coordinator={commission} isEditMode={isEditMode} onEditMember={handleEditMember} />)}
+                    {displayData.leadership.commissions.map(commission => <CommissionGroup key={commission.id} coordinator={commission} isEditMode={isEditMode} onEditMember={handleEditMember} />)}
                 </div>
                 </div>
             </div>

@@ -26,10 +26,9 @@ const functions = [
 interface HomeProps {
     setPage: (page: string) => void;
     isEditMode: boolean;
-    showToast: (message: string) => void;
 }
 
-const Home: React.FC<HomeProps> = ({ setPage, isEditMode, showToast }) => {
+const Home: React.FC<HomeProps> = ({ setPage, isEditMode }) => {
     const { data, loading, error } = useData();
 
     const latestNews: NewsItem[] = data ? [...data.news].sort((a, b) => b.id - a.id).slice(0, 6) : [];
@@ -90,7 +89,7 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode, showToast }) => {
 
     return (
         <>
-            <Hero isEditMode={isEditMode} showToast={showToast} />
+            <Hero isEditMode={isEditMode} />
 
             {/* Welcome Section */}
              <section className="py-16 sm:py-20 bg-white">

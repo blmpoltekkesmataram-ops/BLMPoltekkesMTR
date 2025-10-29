@@ -1,10 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { useData } from '../contexts/DataContext';
 import Spinner from './Spinner';
 
 interface HeroProps {
   isEditMode: boolean;
-  showToast: (message:string) => void;
 }
 
 const fileToBase64 = (file: File): Promise<string> =>
@@ -15,34 +14,28 @@ const fileToBase64 = (file: File): Promise<string> =>
     reader.onerror = (error) => reject(error);
   });
 
-const Hero: React.FC<HeroProps> = ({ isEditMode, showToast }) => {
-  const { data, loading, updateHeroBackground } = useData();
-  const [isSaving, setIsSaving] = useState(false);
+const Hero: React.FC<HeroProps> = ({ isEditMode }) => {
+  const { data, editedData, loading, setEditedHeroBackground } = useData();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setIsSaving(true);
       try {
         const base64Image = await fileToBase64(event.target.files[0]);
-        await updateHeroBackground(base64Image);
-        showToast('Gambar latar belakang berhasil diubah!');
+        setEditedHeroBackground(base64Image);
       } catch (error) {
         console.error("Error processing image:", error);
-        showToast('Gagal mengubah gambar.');
-      } finally {
-        setIsSaving(false);
+        alert('Gagal memproses gambar.');
       }
     }
   };
 
   const triggerFileInput = () => {
-    if (!isSaving) {
-      fileInputRef.current?.click();
-    }
+    fileInputRef.current?.click();
   };
   
-  const backgroundImage = data?.hero.backgroundImage || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop";
+  const displayData = isEditMode ? editedData : data;
+  const backgroundImage = displayData?.hero.backgroundImage || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop";
 
   return (
     <section id="beranda" className="relative h-screen flex items-center justify-center text-center text-white bg-cover bg-center" style={{ backgroundImage: `url('${backgroundImage}')` }}>
@@ -52,7 +45,6 @@ const Hero: React.FC<HeroProps> = ({ isEditMode, showToast }) => {
         onChange={handleImageChange}
         className="hidden"
         accept="image/*"
-        disabled={isSaving}
       />
       <div className="absolute inset-0 bg-brand-blue/75"></div>
       <div className="relative z-10 p-4 overflow-hidden">
@@ -71,20 +63,10 @@ const Hero: React.FC<HeroProps> = ({ isEditMode, showToast }) => {
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20">
           <button
             onClick={triggerFileInput}
-            disabled={isSaving}
-            className="bg-white/80 hover:bg-white text-brand-blue font-bold py-2 px-4 rounded-lg shadow-lg flex items-center gap-2 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+            className="bg-white/80 hover:bg-white text-brand-blue font-bold py-2 px-4 rounded-lg shadow-lg flex items-center gap-2 transition-colors"
           >
-            {isSaving ? (
-              <>
-                <Spinner size="sm" />
-                <span>Menyimpan...</span>
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z"></path></svg>
-                Ganti Latar Belakang
-              </>
-            )}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z"></path></svg>
+            Ganti Latar Belakang
           </button>
         </div>
       )}

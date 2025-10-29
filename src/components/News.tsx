@@ -20,16 +20,16 @@ const getTypeClass = (type: NewsItem['type']) => {
 };
 
 const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
-    const { data, loading, error, addNewsItem, updateNewsItem, deleteNewsItem } = useData();
+    const { data, editedData, loading, error, setEditedNews } = useData();
     const [showModal, setShowModal] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
     const [editingItem, setEditingItem] = useState<NewsItem | null>(null);
     const [formData, setFormData] = useState({ title: '', content: '', type: 'Berita' as NewsItem['type'] });
     
     const [sortOption, setSortOption] = useState('newest');
     const [filterCategory, setFilterCategory] = useState('Semua');
 
-    const newsItems = data?.news || [];
+    const displayData = isEditMode ? editedData : data;
+    const newsItems = displayData?.news || [];
 
     const filteredAndSortedItems = useMemo(() => {
         let items = [...newsItems];
@@ -63,35 +63,33 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
         setFormData({ title: '', content: '', type: 'Berita' });
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSaving(true);
-        try {
-            if (editingItem) {
-                await updateNewsItem({ ...editingItem, ...formData });
-                showToast("Item berhasil diperbarui!");
-            } else {
-                await addNewsItem(formData);
-                showToast("Item baru berhasil dipublikasikan!");
-            }
-            handleCloseModal();
-        } catch (err) {
-            console.error(err);
-            showToast("Gagal menyimpan item.");
-        } finally {
-            setIsSaving(false);
+        if (!editedData) return;
+
+        if (editingItem) {
+            const updatedItems = editedData.news.map(item => 
+                item.id === editingItem.id ? { ...item, ...formData, date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) } : item
+            );
+            setEditedNews(updatedItems);
+            showToast("Perubahan item disimpan sementara!");
+        } else {
+            const newItem: NewsItem = { 
+                id: Date.now(), 
+                ...formData, 
+                date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+            };
+            setEditedNews([newItem, ...editedData.news]);
+            showToast("Item baru ditambahkan sementara!");
         }
+        handleCloseModal();
     };
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = (id: number) => {
+        if (!editedData) return;
         if (window.confirm('Apakah Anda yakin ingin menghapus item ini?')) {
-            try {
-                await deleteNewsItem(id);
-                showToast("Item berhasil dihapus.");
-            } catch (err) {
-                console.error(err);
-                showToast("Gagal menghapus item.");
-            }
+            setEditedNews(editedData.news.filter(item => item.id !== id));
+            showToast("Item ditandai untuk dihapus.");
         }
     };
 
@@ -207,8 +205,8 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
                                 </select>
                             </div>
                             <div className="text-right pt-4">
-                                <button type="submit" className="bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors duration-300 disabled:bg-slate-400" disabled={isSaving}>
-                                    {isSaving ? 'Menyimpan...' : (editingItem ? 'Simpan Perubahan' : 'Publikasikan')}
+                                <button type="submit" className="bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors duration-300">
+                                    {editingItem ? 'Terapkan Perubahan' : 'Tambahkan'}
                                 </button>
                             </div>
                         </form>

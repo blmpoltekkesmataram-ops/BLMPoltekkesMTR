@@ -15,15 +15,17 @@ import Footer from './components/Footer';
 import Login from './components/Login';
 import AdminToolbar from './components/AdminToolbar';
 import Toast from './components/Toast';
-import { DataProvider } from './contexts/DataContext';
+import { DataProvider, useData } from './contexts/DataContext';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('Beranda');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const { saveAllChanges, isSaving, refetch } = useData();
 
   const handleLogin = (user: string) => {
     setIsLoggedIn(true);
@@ -35,12 +37,32 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
-    setIsEditMode(false); // Exit edit mode on logout
+    setIsEditMode(false);
     showToast('Anda telah logout.');
   };
 
   const toggleEditMode = () => {
-    setIsEditMode(prev => !prev);
+    if (isEditMode) {
+      // When exiting, discard any unsaved changes by refetching original data
+      const confirmExit = window.confirm("Apakah Anda yakin ingin keluar? Perubahan yang belum disimpan akan hilang.");
+      if (confirmExit) {
+        refetch();
+        setIsEditMode(false);
+      }
+    } else {
+      setIsEditMode(true);
+    }
+  };
+
+  const handleSaveAll = async () => {
+    try {
+        await saveAllChanges();
+        showToast('Semua perubahan berhasil disimpan!');
+        setIsEditMode(false); // Exit edit mode after successful save
+    } catch (e) {
+        console.error(e);
+        showToast('Gagal menyimpan perubahan. Silakan coba lagi.');
+    }
   };
   
   const showToast = (message: string) => {
@@ -50,21 +72,21 @@ const App: React.FC = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'Beranda':
-        return <Home setPage={setCurrentPage} isEditMode={isEditMode} showToast={showToast} />;
+        return <Home setPage={setCurrentPage} isEditMode={isEditMode} />;
       case 'Profil':
         return (
           <>
             <Profile />
-            <VisiMisi isEditMode={isEditMode} showToast={showToast} />
+            <VisiMisi isEditMode={isEditMode} />
             <Tupoksi />
-            <LogoPhilosophy isEditMode={isEditMode} showToast={showToast} />
+            <LogoPhilosophy isEditMode={isEditMode} />
           </>
         );
       case 'Struktur BLM':
         return (
           <>
             <Structure />
-            <LeadershipStructure isEditMode={isEditMode} showToast={showToast} />
+            <LeadershipStructure isEditMode={isEditMode} />
           </>
         );
       case 'Alur Ormawa':
@@ -76,12 +98,11 @@ const App: React.FC = () => {
       case 'Galeri':
         return <Gallery isEditMode={isEditMode} showToast={showToast} />;
       default:
-        return <Home setPage={setCurrentPage} isEditMode={isEditMode} showToast={showToast} />;
+        return <Home setPage={setCurrentPage} isEditMode={isEditMode} />;
     }
   };
 
   return (
-    <DataProvider>
       <div className={`bg-slate-50 text-slate-800 antialiased font-sans ${isLoggedIn ? 'pt-14' : ''}`}>
         {isLoggedIn && (
           <AdminToolbar
@@ -89,6 +110,8 @@ const App: React.FC = () => {
             onLogout={handleLogout}
             isEditMode={isEditMode}
             toggleEditMode={toggleEditMode}
+            onSaveAll={handleSaveAll}
+            isSaving={isSaving}
           />
         )}
         <Navbar 
@@ -104,8 +127,15 @@ const App: React.FC = () => {
         {showLogin && !isLoggedIn && <Login onLogin={handleLogin} onClose={() => setShowLogin(false)} />}
         <Toast message={toastMessage} onClear={() => setToastMessage(null)} />
       </div>
-    </DataProvider>
   );
 };
+
+const App: React.FC = () => {
+  return (
+    <DataProvider>
+      <AppContent />
+    </DataProvider>
+  )
+}
 
 export default App;
