@@ -141,7 +141,6 @@ const CommissionGroup: React.FC<{ coordinator: Member; isEditMode: boolean; onEd
 
 const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member) => void; onClose: () => void; }> = ({ member, onSave, onClose }) => {
   const [formData, setFormData] = useState(member);
-  const [newImage, setNewImage] = useState<File | null>(null);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({...prev, [e.target.name]: e.target.value }));
@@ -154,7 +153,6 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setNewImage(e.target.files[0]);
       // Create a temporary URL for preview
       setFormData(prev => ({...prev, imageUrl: URL.createObjectURL(e.target.files![0])}));
     }
