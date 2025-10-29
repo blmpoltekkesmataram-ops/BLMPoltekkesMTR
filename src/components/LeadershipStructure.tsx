@@ -1,79 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SectionWrapper from './SectionWrapper';
+import { useData } from '../contexts/DataContext';
+import Spinner from './Spinner';
+import { Member, MembersData } from '../data/initialData';
 
-interface Member {
-    id: string;
-    role: string;
-    name: string;
-    imageUrl: string;
-    members?: Member[];
-    tupoksi?: string[];
-    skills?: string[];
-}
+
 interface LeadershipStructureProps {
   isEditMode: boolean;
   showToast: (message: string) => void;
 }
-
-// Fix: Define a type for the initial data structure to ensure type consistency.
-interface MembersData {
-    top: Member[];
-    mid: Member[];
-    commissions: Member[];
-}
-
-const initialMembersData: MembersData = {
-    top: [
-        { id: "ketua", role: "Ketua Umum", name: "Aulia Dini Mardiati", imageUrl: "https://i.pravatar.cc/150?u=ketua_aulia", tupoksi: ["Memimpin & mengkoordinir", "Bertanggung jawab umum", "Mewakili organisasi"] },
-        { id: "wakil", role: "Wakil Ketua Umum", name: "Dina Aulia Febrianti", imageUrl: "https://i.pravatar.cc/150?u=wakil_dina", tupoksi: ["Membantu Ketua Umum", "Menggantikan tugas Ketua", "Koordinasi internal"] }
-    ],
-    mid: [
-        { id: "sekum", role: "Sekretaris Umum", name: "Bq. Amalia Ariska", imageUrl: "https://i.pravatar.cc/150?u=sekretaris_amalia", tupoksi: ["Administrasi & surat-menyurat", "Notulensi rapat", "Pengarsipan dokumen"] },
-        { id: "bendum", role: "Bendahara Umum", name: "Rizki Lailatul Fajri", imageUrl: "https://i.pravatar.cc/150?u=bendahara_rizki", tupoksi: ["Manajemen keuangan", "Membuat laporan keuangan", "Verifikasi anggaran"] }
-    ],
-    commissions: [
-        { 
-            id: "kom1", role: "Koordinator Komisi I", name: "Asadilla Al Riski", imageUrl: "https://i.pravatar.cc/150?u=asadilla", skills: ["Analisis Kebijakan", "Monitoring", "Evaluasi Program"],
-            members: [
-                { id: "kom1-1", role: "Anggota", name: "Reni Nurnaningsi", imageUrl: "https://i.pravatar.cc/100?u=reni", skills: ["Riset", "Observasi"] },
-                { id: "kom1-2", role: "Anggota", name: "M. Chandra Egi Junanda", imageUrl: "https://i.pravatar.cc/100?u=chandra", skills: ["Wawancara", "Kritis"] },
-                { id: "kom1-3", role: "Anggota", name: "Baiq Yasyifa Ayu Andini", imageUrl: "https://i.pravatar.cc/100?u=yasyifa", skills: ["Pelaporan", "Detail"] },
-                { id: "kom1-4", role: "Anggota", name: "Nadipatul Ulia", imageUrl: "https://i.pravatar.cc/100?u=nadipatul", skills: ["Analisis Data", "Teliti"] },
-                { id: "kom1-5", role: "Anggota", name: "Lalu Rahmat Rivaldy", imageUrl: "https://i.pravatar.cc/100?u=rahmat", skills: ["Komunikasi", "Investigatif"] },
-                { id: "kom1-6", role: "Anggota", name: "Meitalinda", imageUrl: "https://i.pravatar.cc/100?u=meitalinda", skills: ["Teamwork", "Adaptif"] },
-            ]
-        },
-        { 
-            id: "kom2", role: "Koordinator Komisi II", name: "(Belum Terisi)", imageUrl: "https://i.pravatar.cc/150?u=kosong", skills: ["Manajemen Anggaran", "Audit", "Akuntansi"],
-            members: [
-                { id: "kom2-1", role: "Anggota", name: "Wiwin Hastika Septiana", imageUrl: "https://i.pravatar.cc/100?u=wiwinh", skills: ["Akuntansi Dasar", "Teliti"] },
-                { id: "kom2-2", role: "Anggota", name: "Riska Sukma Dewi", imageUrl: "https://i.pravatar.cc/100?u=riska", skills: ["Spreadsheet", "Analitis"] },
-                { id: "kom2-3", role: "Anggota", name: "Firly Nasywa Sabrina", imageUrl: "https://i.pravatar.cc/100?u=firly", skills: ["Verifikasi", "Integritas"] },
-                { id: "kom2-4", role: "Anggota", name: "Nanda Putri Pratami", imageUrl: "https://i.pravatar.cc/100?u=nanda", skills: ["Pembukuan", "Organized"] },
-                { id: "kom2-5", role: "Anggota", name: "Nur Afifah", imageUrl: "https://i.pravatar.cc/100?u=afifah", skills: ["Rencana Anggaran", "Detail"] },
-            ]
-        },
-        { 
-            id: "kom3", role: "Koordinator Komisi III", name: "Nela Deswinta", imageUrl: "https://i.pravatar.cc/150?u=nela", skills: ["Legal Drafting", "Perancangan UU", "Arsip"],
-            members: [
-                { id: "kom3-1", role: "Anggota", name: "Wiwin Atqiya", imageUrl: "https://i.pravatar.cc/100?u=wiwina", skills: ["Riset Hukum", "Menulis"] },
-                { id: "kom3-2", role: "Anggota", name: "Wira Mulya Wijaya Kusuma", imageUrl: "https://i.pravatar.cc/100?u=wira", skills: ["Debat", "Logika Hukum"] },
-                { id: "kom3-3", role: "Anggota", name: "Aulia Annisa Febriyanti", imageUrl: "https://i.pravatar.cc/100?u=aulia", skills: ["Pengarsipan", "Detail"] },
-                { id: "kom3-4", role: "Anggota", name: "Dini Hayati", imageUrl: "https://i.pravatar.cc/100?u=dini", skills: ["Studi Literatur", "Kritis"] },
-            ]
-        },
-        { 
-            id: "kom4", role: "Koordinator Komisi IV", name: "Melita Khairunnisa", imageUrl: "https://i.pravatar.cc/150?u=melita", skills: ["Public Speaking", "Media Sosial", "Networking"],
-            members: [
-                 { id: "kom4-1", role: "Anggota", name: "Arifiani Rastim", imageUrl: "https://i.pravatar.cc/100?u=arifiani", skills: ["Desain Grafis", "Humas"] },
-                 { id: "kom4-2", role: "Anggota", name: "Sendy Aulia", imageUrl: "https://i.pravatar.cc/100?u=sendy", skills: ["Jurnalistik", "Komunikasi"] },
-                 { id: "kom4-3", role: "Anggota", name: "Nadhiva Puja Meisya B.", imageUrl: "https://i.pravatar.cc/100?u=nadhiva", skills: ["Content Creator", "Videografi"] },
-                 { id: "kom4-4", role: "Anggota", name: "Muhammad Sirrul Fahmi", imageUrl: "https://i.pravatar.cc/100?u=sirrul", skills: ["Mediasi", "Diplomasi"] },
-                 { id: "kom4-5", role: "Anggota", name: "Ryo Aditya", imageUrl: "https://i.pravatar.cc/100?u=ryo", skills: ["Event Organizer", "Networking"] },
-            ]
-        }
-    ]
-};
 
 const MemberCard: React.FC<{ member: Member; size?: 'sm' | 'md'; isEditMode: boolean; onEdit: () => void; }> = ({ member, size = 'md', isEditMode, onEdit }) => {
     const { role, name, imageUrl, tupoksi, skills } = member;
@@ -117,7 +52,6 @@ const MemberCard: React.FC<{ member: Member; size?: 'sm' | 'md'; isEditMode: boo
     );
 };
 
-// ... other sub-components like ConnectingLine, CommissionGroup are the same ...
 const ConnectingLine: React.FC<{ height?: string }> = ({ height = 'h-12' }) => (
     <div className={`w-px bg-slate-300 mx-auto ${height}`}></div>
 );
@@ -139,8 +73,18 @@ const CommissionGroup: React.FC<{ coordinator: Member; isEditMode: boolean; onEd
     </div>
 );
 
-const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member) => void; onClose: () => void; }> = ({ member, onSave, onClose }) => {
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+
+const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member) => Promise<void>; onClose: () => void; }> = ({ member, onSave, onClose }) => {
   const [formData, setFormData] = useState(member);
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({...prev, [e.target.name]: e.target.value }));
@@ -153,13 +97,33 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      // Create a temporary URL for preview
-      setFormData(prev => ({...prev, imageUrl: URL.createObjectURL(e.target.files![0])}));
+      const file = e.target.files[0];
+      setNewImageFile(file);
+      setFormData(prev => ({...prev, imageUrl: URL.createObjectURL(file)}));
     }
   }
 
-  const handleSave = () => {
-    onSave(formData);
+  const handleSave = async () => {
+    setIsSaving(true);
+    let finalData = { ...formData };
+    if (newImageFile) {
+        try {
+            const base64 = await fileToBase64(newImageFile);
+            finalData.imageUrl = base64;
+        } catch (err) {
+            console.error(err);
+            alert("Gagal memproses gambar.");
+            setIsSaving(false);
+            return;
+        }
+    }
+    try {
+        await onSave(finalData);
+    } catch(e) {
+        console.error(e);
+    } finally {
+        setIsSaving(false);
+    }
   }
 
   return (
@@ -197,7 +161,9 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
             )}
         </div>
         <div className="text-right pt-6 mt-4 border-t">
-            <button onClick={handleSave} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors">Simpan Perubahan</button>
+            <button onClick={handleSave} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors disabled:bg-slate-400" disabled={isSaving}>
+                {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+            </button>
         </div>
       </div>
     </div>
@@ -206,14 +172,16 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
 
 
 const LeadershipStructure: React.FC<LeadershipStructureProps> = ({ isEditMode, showToast }) => {
-    const [members, setMembers] = useState(initialMembersData);
+    const { data, loading, error, updateLeadership } = useData();
     const [editingMember, setEditingMember] = useState<Member | null>(null);
 
     const handleEditMember = (member: Member) => {
         setEditingMember(member);
     };
 
-    const handleSaveMember = (updatedMember: Member) => {
+    const handleSaveMember = async (updatedMember: Member) => {
+        if (!data) return;
+
         const updateRecursive = (memberList: Member[]): Member[] => {
             return memberList.map(m => {
                 if (m.id === updatedMember.id) {
@@ -225,35 +193,62 @@ const LeadershipStructure: React.FC<LeadershipStructureProps> = ({ isEditMode, s
                 return m;
             });
         };
-
-        setMembers(prev => ({
-            top: updateRecursive(prev.top),
-            mid: updateRecursive(prev.mid),
-            commissions: updateRecursive(prev.commissions)
-        }));
         
-        setEditingMember(null);
-        showToast("Data anggota berhasil diperbarui!");
+        const newLeadershipData: MembersData = {
+            top: updateRecursive(data.leadership.top),
+            mid: updateRecursive(data.leadership.mid),
+            commissions: updateRecursive(data.leadership.commissions)
+        };
+        
+        try {
+            await updateLeadership(newLeadershipData);
+            setEditingMember(null);
+            showToast("Data anggota berhasil diperbarui!");
+        } catch (e) {
+            console.error(e);
+            showToast("Gagal memperbarui data anggota.");
+        }
     };
+
+    const renderContent = () => {
+        if (loading) {
+            return (
+              <div className="h-96 flex justify-center items-center">
+                <Spinner size="lg" />
+              </div>
+            );
+          }
+      
+        if (error) {
+            return <p className="text-center text-red-500">{error}</p>;
+        }
+
+        if (!data) return null;
+
+        return (
+            <div className="max-w-6xl mx-auto">
+                <div className="flex justify-center items-center flex-col">
+                <div className="flex flex-wrap justify-center gap-8">
+                    {data.leadership.top.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
+                </div>
+                <ConnectingLine />
+                <div className="flex flex-wrap justify-center gap-8">
+                    {data.leadership.mid.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
+                </div>
+                <ConnectingLine />
+                <div className="w-full h-px bg-slate-300"></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12 w-full mt-4">
+                    {data.leadership.commissions.map(commission => <CommissionGroup key={commission.id} coordinator={commission} isEditMode={isEditMode} onEditMember={handleEditMember} />)}
+                </div>
+                </div>
+            </div>
+        );
+    }
+
 
   return (
     <SectionWrapper id="leadership" title="Struktur Kepemimpinan" bgClass="bg-slate-50">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-center items-center flex-col">
-          <div className="flex flex-wrap justify-center gap-8">
-             {members.top.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
-          </div>
-          <ConnectingLine />
-          <div className="flex flex-wrap justify-center gap-8">
-            {members.mid.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
-          </div>
-          <ConnectingLine />
-          <div className="w-full h-px bg-slate-300"></div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12 w-full mt-4">
-            {members.commissions.map(commission => <CommissionGroup key={commission.id} coordinator={commission} isEditMode={isEditMode} onEditMember={handleEditMember} />)}
-          </div>
-        </div>
-      </div>
+      {renderContent()}
       {editingMember && (
           <EditMemberModal
             member={editingMember}

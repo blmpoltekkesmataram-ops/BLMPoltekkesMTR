@@ -1,25 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import SectionWrapper from './SectionWrapper';
+import { useData } from '../contexts/DataContext';
+import Spinner from './Spinner';
+import { NewsItem } from '../data/initialData';
 
-interface NewsItem {
-  id: number;
-  title: string;
-  content: string;
-  type: 'Berita' | 'Pengumuman' | 'Agenda';
-  date: string;
-}
 interface NewsProps {
   isLoggedIn: boolean;
   isEditMode: boolean;
   showToast: (message: string) => void;
 }
-
-const initialNewsItems: NewsItem[] = [
-    { id: 1661430000000, title: 'Pelatihan Kelegislatifan 2024', content: 'Pelatihan dasar mengenai fungsi dan tugas legislatif bagi seluruh anggota baru untuk meningkatkan pemahaman dan kinerja.', type: 'Agenda', date: '25 Agu 2024' },
-    { id: 1660825200000, title: 'Hasil Kongres Mahasiswa', content: 'Telah ditetapkan Anggaran Dasar/Anggaran Rumah Tangga (AD/ART) dan Garis Besar Haluan Kerja (GBHK) baru untuk periode 2024/2025.', type: 'Berita', date: '18 Agu 2024' },
-    { id: 1660566000000, title: 'Jadwal Ujian Akhir Semester Ganjil', content: 'Diberitahukan kepada seluruh mahasiswa bahwa Ujian Akhir Semester (UAS) akan dilaksanakan mulai tanggal 10 September 2024.', type: 'Pengumuman', date: '15 Agu 2024' },
-    { id: 1659356400000, title: 'Studi Banding Antar Lembaga', content: 'Kegiatan studi banding dengan lembaga legislatif universitas lain untuk bertukar pikiran dan inovasi.', type: 'Agenda', date: '01 Agu 2024' },
-];
 
 const getTypeClass = (type: NewsItem['type']) => {
     switch (type) {
@@ -31,13 +20,16 @@ const getTypeClass = (type: NewsItem['type']) => {
 };
 
 const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
-    const [newsItems, setNewsItems] = useState<NewsItem[]>(initialNewsItems);
+    const { data, loading, error, addNewsItem, updateNewsItem, deleteNewsItem } = useData();
     const [showModal, setShowModal] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [editingItem, setEditingItem] = useState<NewsItem | null>(null);
     const [formData, setFormData] = useState({ title: '', content: '', type: 'Berita' as NewsItem['type'] });
     
     const [sortOption, setSortOption] = useState('newest');
     const [filterCategory, setFilterCategory] = useState('Semua');
+
+    const newsItems = data?.news || [];
 
     const filteredAndSortedItems = useMemo(() => {
         let items = [...newsItems];
@@ -71,29 +63,35 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
         setFormData({ title: '', content: '', type: 'Berita' });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const currentDate = new Date();
-        const formattedDate = currentDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-
-        if (editingItem) {
-            const updatedItems = newsItems.map(item => 
-                item.id === editingItem.id ? { ...item, ...formData, date: formattedDate } : item
-            );
-            setNewsItems(updatedItems);
-            showToast("Item berhasil diperbarui!");
-        } else {
-            const newItem: NewsItem = { id: currentDate.getTime(), ...formData, date: formattedDate };
-            setNewsItems(prev => [newItem, ...prev]);
-            showToast("Item baru berhasil dipublikasikan!");
+        setIsSaving(true);
+        try {
+            if (editingItem) {
+                await updateNewsItem({ ...editingItem, ...formData });
+                showToast("Item berhasil diperbarui!");
+            } else {
+                await addNewsItem(formData);
+                showToast("Item baru berhasil dipublikasikan!");
+            }
+            handleCloseModal();
+        } catch (err) {
+            console.error(err);
+            showToast("Gagal menyimpan item.");
+        } finally {
+            setIsSaving(false);
         }
-        handleCloseModal();
     };
 
-    const handleDelete = (id: number) => {
+    const handleDelete = async (id: number) => {
         if (window.confirm('Apakah Anda yakin ingin menghapus item ini?')) {
-            setNewsItems(newsItems.filter(item => item.id !== id));
-            showToast("Item berhasil dihapus.");
+            try {
+                await deleteNewsItem(id);
+                showToast("Item berhasil dihapus.");
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal menghapus item.");
+            }
         }
     };
 
@@ -108,9 +106,52 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
         );
     };
 
+    const renderContent = () => {
+        if (loading) {
+          return (
+            <div className="h-96 flex justify-center items-center">
+              <Spinner />
+            </div>
+          );
+        }
+    
+        if (error) {
+          return <p className="text-center text-red-500">{error}</p>;
+        }
+    
+        return (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredAndSortedItems.map(item => (
+                    <div key={item.id} className="relative">
+                      <EditWrapper>
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full transform hover:-translate-y-2 transition-transform duration-300 ease-in-out">
+                            <div className="p-6 flex-grow">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${getTypeClass(item.type)}`}>
+                                        {item.type}
+                                    </span>
+                                    <p className="text-sm text-slate-500">{item.date}</p>
+                                </div>
+                                <h3 className="text-xl font-bold text-brand-blue mb-2">{item.title}</h3>
+                                <p className="text-slate-600 text-sm leading-relaxed">{item.content}</p>
+                            </div>
+                            {isEditMode && isLoggedIn && (
+                                <div className="bg-slate-50 p-3 flex justify-end gap-2 border-t">
+                                    <button onClick={() => handleOpenModal(item)} className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
+                                    <button onClick={() => handleDelete(item.id)} className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors">Hapus</button>
+                                </div>
+                            )}
+                        </div>
+                      </EditWrapper>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
     return (
         <SectionWrapper id="berita" title="Berita & Pengumuman">
-            {isLoggedIn && (
+            {isEditMode && isLoggedIn && (
                 <div className="text-center mb-8">
                   <EditWrapper className="inline-block">
                     <button onClick={() => handleOpenModal(null)} className="bg-brand-gold text-brand-blue font-bold py-2 px-6 rounded-lg hover:bg-yellow-400 transition-colors duration-300 shadow-md">
@@ -141,32 +182,7 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
                 </div>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredAndSortedItems.map(item => (
-                    <div key={item.id} className="relative">
-                      <EditWrapper>
-                        <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full transform hover:-translate-y-2 transition-transform duration-300 ease-in-out">
-                            <div className="p-6 flex-grow">
-                                <div className="flex justify-between items-start mb-2">
-                                    <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${getTypeClass(item.type)}`}>
-                                        {item.type}
-                                    </span>
-                                    <p className="text-sm text-slate-500">{item.date}</p>
-                                </div>
-                                <h3 className="text-xl font-bold text-brand-blue mb-2">{item.title}</h3>
-                                <p className="text-slate-600 text-sm leading-relaxed">{item.content}</p>
-                            </div>
-                            {isLoggedIn && (
-                                <div className="bg-slate-50 p-3 flex justify-end gap-2 border-t">
-                                    <button onClick={() => handleOpenModal(item)} className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
-                                    <button onClick={() => handleDelete(item.id)} className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors">Hapus</button>
-                                </div>
-                            )}
-                        </div>
-                      </EditWrapper>
-                    </div>
-                ))}
-            </div>
+            {renderContent()}
 
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 z-[101] flex items-center justify-center p-4">
@@ -191,8 +207,8 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
                                 </select>
                             </div>
                             <div className="text-right pt-4">
-                                <button type="submit" className="bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors duration-300">
-                                    {editingItem ? 'Simpan Perubahan' : 'Publikasikan'}
+                                <button type="submit" className="bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors duration-300 disabled:bg-slate-400" disabled={isSaving}>
+                                    {isSaving ? 'Menyimpan...' : (editingItem ? 'Simpan Perubahan' : 'Publikasikan')}
                                 </button>
                             </div>
                         </form>

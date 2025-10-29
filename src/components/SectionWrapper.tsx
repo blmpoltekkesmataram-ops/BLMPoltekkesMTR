@@ -38,7 +38,7 @@ const SectionWrapper: React.FC<SectionWrapperProps> = ({ id, title, children, bg
   }, []);
 
 
-  const paddingTopClass = ['profil', 'struktur', 'leadership', 'ormawa', 'berita', 'aspirasi', 'galeri'].includes(id) ? 'pt-28 sm:pt-32 pb-16 sm:pb-20' : 'py-16 sm:py-20';
+  const paddingTopClass = ['profil', 'struktur', 'leadership', 'ormawa', 'berita', 'aspirasi', 'galeri', 'struktur-blm', 'alur-ormawa'].includes(id) ? 'pt-28 sm:pt-32 pb-16 sm:pb-20' : 'py-16 sm:py-20';
 
   return (
     <section 

@@ -1,34 +1,20 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import SectionWrapper from './SectionWrapper';
-import { logoBase64 } from './Logo';
+import { useData } from '../contexts/DataContext';
+import Spinner from './Spinner';
 
 interface LogoPhilosophyProps {
   isEditMode: boolean;
   showToast: (message: string) => void;
 }
 
-const initialPhilosophyData = {
-  blm: {
-    title: 'Filosofi Logo BLM',
-    imageUrl: logoBase64,
-    details: [
-      'Tiga Bintang: Melambangkan Tri Dharma Perguruan Tinggi (Pendidikan, Penelitian, dan Pengabdian).',
-      'Padi dan Kapas: Simbol kesejahteraan dan keadilan sosial bagi seluruh mahasiswa.',
-      'Tugu Legislasi: Pilar utama demokrasi, hukum, dan konstitusi organisasi.',
-      'Lingkaran Merah Putih: Semangat nasionalisme dan persatuan dalam bingkai NKRI.',
-    ],
-  },
-  kabinet: {
-    title: 'Filosofi Kabinet Sinergi Inovasi',
-    imageUrl: 'https://via.placeholder.com/200x200.png?text=Logo+Kabinet',
-    details: [
-        'Roda Gigi: Sinergi dan kolaborasi antar komisi dan dengan lembaga lain.',
-        'Api Obor: Semangat yang menyala untuk terus berinovasi dan memberikan pencerahan.',
-        'Perisai: Fungsi pengawasan sebagai pelindung konstitusi dan penjaga aspirasi mahasiswa.',
-        'Warna Emas: Melambangkan kejayaan, prestasi, dan harapan untuk masa depan gemilang.',
-    ],
-  },
-};
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
 
 const FlipCard: React.FC<{
   title: string;
@@ -108,36 +94,66 @@ const FlipCard: React.FC<{
 };
 
 const LogoPhilosophy: React.FC<LogoPhilosophyProps> = ({ isEditMode, showToast }) => {
-  const [philosophyData, setPhilosophyData] = useState(initialPhilosophyData);
-  const [tempBlmTitle, setTempBlmTitle] = useState(initialPhilosophyData.blm.title);
-  const [tempKabinetTitle, setTempKabinetTitle] = useState(initialPhilosophyData.kabinet.title);
-  const [tempBlmDetails, setTempBlmDetails] = useState(initialPhilosophyData.blm.details.join('\n'));
-  const [tempKabinetDetails, setTempKabinetDetails] = useState(initialPhilosophyData.kabinet.details.join('\n'));
+  const { data, loading, error, updateLogoPhilosophy } = useData();
 
-  const handleSaveChanges = () => {
-    setPhilosophyData(prev => ({
-      blm: { 
-        ...prev.blm, 
-        title: tempBlmTitle,
-        details: tempBlmDetails.split('\n').filter(line => line.trim() !== '') 
-      },
-      kabinet: { 
-        ...prev.kabinet, 
-        title: tempKabinetTitle,
-        details: tempKabinetDetails.split('\n').filter(line => line.trim() !== '') 
-      }
-    }));
-    showToast("Filosofi Logo berhasil diperbarui!");
+  const [isSaving, setIsSaving] = useState(false);
+  const [tempBlmTitle, setTempBlmTitle] = useState('');
+  const [tempKabinetTitle, setTempKabinetTitle] = useState('');
+  const [tempBlmDetails, setTempBlmDetails] = useState('');
+  const [tempKabinetDetails, setTempKabinetDetails] = useState('');
+  
+  useEffect(() => {
+    if (data?.logoPhilosophy) {
+      setTempBlmTitle(data.logoPhilosophy.blm.title);
+      setTempKabinetTitle(data.logoPhilosophy.kabinet.title);
+      setTempBlmDetails(data.logoPhilosophy.blm.details.join('\n'));
+      setTempKabinetDetails(data.logoPhilosophy.kabinet.details.join('\n'));
+    }
+  }, [isEditMode, data]);
+
+  const handleSaveChanges = async () => {
+    if (!data) return;
+    setIsSaving(true);
+    try {
+        const newData = {
+            ...data.logoPhilosophy,
+            blm: { 
+                ...data.logoPhilosophy.blm, 
+                title: tempBlmTitle,
+                details: tempBlmDetails.split('\n').filter(line => line.trim() !== '') 
+            },
+            kabinet: { 
+                ...data.logoPhilosophy.kabinet, 
+                title: tempKabinetTitle,
+                details: tempKabinetDetails.split('\n').filter(line => line.trim() !== '') 
+            }
+        };
+        await updateLogoPhilosophy(newData);
+        showToast("Filosofi Logo berhasil diperbarui!");
+    } catch(e) {
+        console.error(e);
+        showToast("Gagal menyimpan perubahan.");
+    } finally {
+        setIsSaving(false);
+    }
   };
 
-   const handleImageChange = (type: 'blm' | 'kabinet') => (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const newImageUrl = URL.createObjectURL(event.target.files[0]);
-      setPhilosophyData(prev => ({
-        ...prev,
-        [type]: { ...prev[type], imageUrl: newImageUrl }
-      }));
-      showToast(`Logo ${type === 'blm' ? 'BLM' : 'Kabinet'} berhasil diubah!`);
+   const handleImageChange = (type: 'blm' | 'kabinet') => async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0] && data?.logoPhilosophy) {
+      setIsSaving(true);
+      try {
+        const newImageUrl = await fileToBase64(event.target.files[0]);
+        const newData = {
+            ...data.logoPhilosophy,
+            [type]: { ...data.logoPhilosophy[type], imageUrl: newImageUrl }
+        };
+        await updateLogoPhilosophy(newData);
+        showToast(`Logo ${type === 'blm' ? 'BLM' : 'Kabinet'} berhasil diubah!`);
+      } catch (error) {
+        showToast('Gagal memproses gambar.');
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -153,6 +169,24 @@ const LogoPhilosophy: React.FC<LogoPhilosophyProps> = ({ isEditMode, showToast }
       </div>
     );
   };
+  
+  if (loading) {
+    return (
+      <SectionWrapper id="logo-philosophy" title="Filosofi Logo" bgClass="bg-white">
+        <div className="h-96 flex justify-center items-center">
+          <Spinner />
+        </div>
+      </SectionWrapper>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <SectionWrapper id="logo-philosophy" title="Filosofi Logo" bgClass="bg-white">
+        <p className="text-center text-red-500">{error || "Data tidak tersedia."}</p>
+      </SectionWrapper>
+    );
+  }
 
 
   return (
@@ -160,9 +194,9 @@ const LogoPhilosophy: React.FC<LogoPhilosophyProps> = ({ isEditMode, showToast }
       <EditWrapper>
         <div className="grid md:grid-cols-2 gap-12">
           <FlipCard
-            title={philosophyData.blm.title}
-            imageUrl={philosophyData.blm.imageUrl}
-            details={philosophyData.blm.details}
+            title={data.logoPhilosophy.blm.title}
+            imageUrl={data.logoPhilosophy.blm.imageUrl}
+            details={data.logoPhilosophy.blm.details}
             isEditMode={isEditMode}
             tempTitle={tempBlmTitle}
             onTempTitleChange={setTempBlmTitle}
@@ -171,9 +205,9 @@ const LogoPhilosophy: React.FC<LogoPhilosophyProps> = ({ isEditMode, showToast }
             onImageChange={handleImageChange('blm')}
           />
           <FlipCard
-            title={philosophyData.kabinet.title}
-            imageUrl={philosophyData.kabinet.imageUrl}
-            details={philosophyData.kabinet.details}
+            title={data.logoPhilosophy.kabinet.title}
+            imageUrl={data.logoPhilosophy.kabinet.imageUrl}
+            details={data.logoPhilosophy.kabinet.details}
             isEditMode={isEditMode}
             tempTitle={tempKabinetTitle}
             onTempTitleChange={setTempKabinetTitle}
@@ -185,8 +219,12 @@ const LogoPhilosophy: React.FC<LogoPhilosophyProps> = ({ isEditMode, showToast }
       </EditWrapper>
       {isEditMode && (
         <div className="text-center mt-8">
-          <button onClick={handleSaveChanges} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors">
-            Simpan Perubahan Filosofi
+          <button 
+            onClick={handleSaveChanges} 
+            className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors disabled:bg-slate-400"
+            disabled={isSaving}
+          >
+            {isSaving ? 'Menyimpan...' : 'Simpan Perubahan Teks Filosofi'}
           </button>
         </div>
       )}

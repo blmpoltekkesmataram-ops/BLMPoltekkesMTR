@@ -1,37 +1,9 @@
 import React from 'react';
 import Hero from './Hero';
 import SectionWrapper from './SectionWrapper';
-
-interface NewsItem {
-  id: number;
-  title: string;
-  type: 'Berita' | 'Pengumuman' | 'Agenda';
-  date: string;
-}
-
-const latestNews: NewsItem[] = [
-    { id: 1, title: 'Pelatihan Kelegislatifan 2024', type: 'Agenda', date: '25 Agu 2024' },
-    { id: 2, title: 'Hasil Kongres Mahasiswa', type: 'Berita', date: '18 Agu 2024' },
-    { id: 3, title: 'Jadwal Ujian Akhir Semester Ganjil', type: 'Pengumuman', date: '15 Agu 2024' },
-    { id: 4, title: 'Studi Banding Antar Lembaga', type: 'Agenda', date: '01 Agu 2024' },
-    { id: 5, title: 'Rapat Dengar Pendapat dengan Direktur', type: 'Berita', date: '28 Jul 2024'},
-    { id: 6, title: 'Pendaftaran Anggota Baru Dibuka!', type: 'Pengumuman', date: '20 Jul 2024'},
-];
-
-interface ImageItem {
-  id: number;
-  src: string;
-  description: string;
-}
-
-const latestImages: ImageItem[] = [
-  { id: 1, src: 'https://picsum.photos/seed/event1/600/400', description: 'Pelatihan Kelegislatifan untuk anggota baru periode 2024.' },
-  { id: 2, src: 'https://picsum.photos/seed/meeting2/600/400', description: 'Rapat Dengar Pendapat bersama pimpinan kampus.' },
-  { id: 3, src: 'https://picsum.photos/seed/campus3/600/400', description: 'Suasana kampus Poltekkes Kemenkes Mataram.' },
-  { id: 4, src: 'https://picsum.photos/seed/team4/600/400', description: 'Foto bersama seluruh anggota BLM periode 2024/2025.' },
-  { id: 5, src: 'https://picsum.photos/seed/activity5/600/400', description: 'Kegiatan studi banding ke universitas lain.' },
-  { id: 6, src: 'https://picsum.photos/seed/official6/600/400', description: 'Momen pelantikan pengurus baru oleh Direktur.' },
-];
+import { useData } from '../contexts/DataContext';
+import { NewsItem, ImageItem } from '../data/initialData';
+import Spinner from './Spinner';
 
 const functions = [
     {
@@ -58,6 +30,10 @@ interface HomeProps {
 }
 
 const Home: React.FC<HomeProps> = ({ setPage, isEditMode, showToast }) => {
+    const { data, loading, error } = useData();
+
+    const latestNews = data ? [...data.news].sort((a, b) => b.id - a.id).slice(0, 6) : [];
+    const latestImages = data ? [...data.gallery].sort((a, b) => b.id - a.id).slice(0, 6) : [];
 
     const getTypeClass = (type: NewsItem['type']) => {
         switch (type) {
@@ -65,6 +41,50 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode, showToast }) => {
             case 'Pengumuman': return 'bg-yellow-100 text-yellow-800';
             case 'Agenda': return 'bg-green-100 text-green-800';
             default: return 'bg-slate-100 text-slate-800';
+        }
+    };
+    
+    const renderLatestItems = (items: any[], type: 'news' | 'gallery') => {
+        if (loading) return <div className="w-full h-40 flex justify-center items-center"><Spinner /></div>;
+        if (error) return <p className="text-red-500 text-center">Gagal memuat data.</p>;
+        if (items.length === 0) return <p className="text-slate-500 text-center">Belum ada konten.</p>;
+
+        if (type === 'news') {
+             return items.map(item => (
+                <div key={item.id} className="flex-shrink-0 w-80 bg-slate-50 rounded-lg shadow-md p-6 border-l-4 border-brand-gold transform hover:scale-105 transition-transform duration-300">
+                    <div className="flex justify-between items-center mb-2">
+                        <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${getTypeClass(item.type)}`}>
+                            {item.type}
+                        </span>
+                        <p className="text-sm text-slate-500">{item.date}</p>
+                    </div>
+                    <h3 className="font-bold text-brand-blue">{item.title}</h3>
+                </div>
+            ));
+        }
+
+        if (type === 'gallery') {
+            return (
+                <>
+                 {items.map((image) => (
+                    <div key={image.id} className="flex-shrink-0 w-80 h-56 rounded-lg shadow-lg overflow-hidden group">
+                        <img 
+                          src={image.src} 
+                          alt={image.description} 
+                          className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500 ease-in-out"
+                        />
+                    </div>
+                ))}
+                <div 
+                    onClick={() => setPage('Galeri')}
+                    className="flex-shrink-0 w-80 h-56 rounded-lg shadow-lg bg-brand-gold/20 hover:bg-brand-gold/40 flex flex-col items-center justify-center text-center text-brand-blue cursor-pointer transition-colors duration-300 p-4"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                    <h3 className="text-xl font-bold">Lihat Galeri Lengkap</h3>
+                    <p className="text-sm">Jelajahi semua dokumentasi kegiatan kami.</p>
+                </div>
+                </>
+            );
         }
     };
 
@@ -107,17 +127,7 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode, showToast }) => {
             {/* Latest News Section */}
             <SectionWrapper id="home-berita" title="Berita & Agenda Terkini" bgClass="bg-white">
                 <div className="flex overflow-x-auto space-x-6 pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                    {latestNews.map(item => (
-                        <div key={item.id} className="flex-shrink-0 w-80 bg-slate-50 rounded-lg shadow-md p-6 border-l-4 border-brand-gold transform hover:scale-105 transition-transform duration-300">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${getTypeClass(item.type)}`}>
-                                    {item.type}
-                                </span>
-                                <p className="text-sm text-slate-500">{item.date}</p>
-                            </div>
-                            <h3 className="font-bold text-brand-blue">{item.title}</h3>
-                        </div>
-                    ))}
+                    {renderLatestItems(latestNews, 'news')}
                 </div>
                 <div className="text-center mt-12">
                     <button onClick={() => setPage('Berita')} className="bg-brand-blue text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-900 transition-colors">
@@ -129,26 +139,9 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode, showToast }) => {
             {/* Latest Gallery Section */}
             <SectionWrapper id="home-galeri" title="Galeri Terkini">
                 <div className="flex overflow-x-auto space-x-6 pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                    {latestImages.slice(0, 6).map((image) => (
-                        <div key={image.id} className="flex-shrink-0 w-80 h-56 rounded-lg shadow-lg overflow-hidden group">
-                            <img 
-                              src={image.src} 
-                              alt={image.description} 
-                              className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500 ease-in-out"
-                            />
-                        </div>
-                    ))}
-                    <div 
-                        onClick={() => setPage('Galeri')}
-                        className="flex-shrink-0 w-80 h-56 rounded-lg shadow-lg bg-brand-gold/20 hover:bg-brand-gold/40 flex flex-col items-center justify-center text-center text-brand-blue cursor-pointer transition-colors duration-300 p-4"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                        <h3 className="text-xl font-bold">Lihat Galeri Lengkap</h3>
-                        <p className="text-sm">Jelajahi semua dokumentasi kegiatan kami.</p>
-                    </div>
+                   {renderLatestItems(latestImages, 'gallery')}
                 </div>
             </SectionWrapper>
-
 
             {/* Aspiration CTA Section */}
             <section className="py-16 sm:py-20 bg-brand-blue">

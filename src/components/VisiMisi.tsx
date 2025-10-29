@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SectionWrapper from './SectionWrapper';
+import { useData } from '../contexts/DataContext';
+import Spinner from './Spinner';
 
 interface VisiMisiProps {
   isEditMode: boolean;
@@ -7,27 +9,35 @@ interface VisiMisiProps {
 }
 
 const VisiMisi: React.FC<VisiMisiProps> = ({ isEditMode, showToast }) => {
-  const initialData = {
-    visi: "Mengembangkan Badan Legislatif Mahasiswa sebagai organisasi pionir yang bersinergi menciptakan inovasi, dan menginspirasi melalui peningkatan kerja sama dan kekeluargaan.",
-    misi: [
-      "Menjalankan setiap tugas dan tanggung jawab BLM berlandaskan iman dan taqwa.",
-      "Menjadikan BLM sebagai mediator dalam berkomunikasi, berdiskusi, serta menampung dan menyalurkan aspirasi.",
-      "Mengembangkan BLM agar dapat menciptakan inovasi, menginspirasi, serta pelayanan terbaik secara konsisten memberikan keberkahan.",
-      "Bersinergi bersama untuk mewujudkan aspirasi demi kemajuan Poltekkes Kemenkes Mataram.",
-    ]
+  const { data, loading, error, updateVisiMisi } = useData();
+  const [isSaving, setIsSaving] = useState(false);
+  const [tempVisi, setTempVisi] = useState('');
+  const [tempMisi, setTempMisi] = useState('');
+
+  useEffect(() => {
+    if (data?.visiMisi) {
+      setTempVisi(data.visiMisi.visi);
+      setTempMisi(data.visiMisi.misi.join('\n'));
+    }
+  }, [isEditMode, data]);
+
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    try {
+      const newData = {
+        visi: tempVisi,
+        misi: tempMisi.split('\n').filter(line => line.trim() !== '')
+      };
+      await updateVisiMisi(newData);
+      showToast("Visi & Misi berhasil diperbarui!");
+    } catch (e) {
+      showToast("Gagal menyimpan perubahan.");
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
   };
-
-  const [visi, setVisi] = useState(initialData.visi);
-  const [misi, setMisi] = useState(initialData.misi);
-  const [tempVisi, setTempVisi] = useState(visi);
-  const [tempMisi, setTempMisi] = useState(misi.join('\n'));
-
-  const handleSaveChanges = () => {
-    setVisi(tempVisi);
-    setMisi(tempMisi.split('\n').filter(line => line.trim() !== ''));
-    showToast("Visi & Misi berhasil diperbarui!");
-  };
-
+  
   const EditWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     if (!isEditMode) return <>{children}</>;
     return (
@@ -39,6 +49,24 @@ const VisiMisi: React.FC<VisiMisiProps> = ({ isEditMode, showToast }) => {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <SectionWrapper id="visi-misi" title="Visi & Misi" bgClass="bg-white">
+        <div className="h-64 flex justify-center items-center">
+          <Spinner />
+        </div>
+      </SectionWrapper>
+    );
+  }
+
+  if (error) {
+    return (
+      <SectionWrapper id="visi-misi" title="Visi & Misi" bgClass="bg-white">
+        <p className="text-center text-red-500">{error}</p>
+      </SectionWrapper>
+    );
+  }
   
   return (
     <SectionWrapper id="visi-misi" title="Visi & Misi" bgClass="bg-white">
@@ -53,7 +81,7 @@ const VisiMisi: React.FC<VisiMisiProps> = ({ isEditMode, showToast }) => {
                 className="w-full h-40 bg-white/10 text-white p-2 rounded-md text-lg leading-relaxed text-center italic"
               />
             ) : (
-              <p className="text-lg leading-relaxed text-center italic">{visi}</p>
+              <p className="text-lg leading-relaxed text-center italic">{data?.visiMisi.visi}</p>
             )}
           </div>
         </EditWrapper>
@@ -69,7 +97,7 @@ const VisiMisi: React.FC<VisiMisiProps> = ({ isEditMode, showToast }) => {
               />
             ) : (
               <ul className="space-y-4">
-                {misi.map((item, index) => (
+                {data?.visiMisi.misi.map((item: string, index: number) => (
                   <li key={index} className="flex items-start">
                     <svg className="w-6 h-6 text-brand-gold mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -84,8 +112,12 @@ const VisiMisi: React.FC<VisiMisiProps> = ({ isEditMode, showToast }) => {
       </div>
       {isEditMode && (
         <div className="text-center mt-8">
-          <button onClick={handleSaveChanges} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors">
-            Simpan Perubahan Visi & Misi
+          <button 
+            onClick={handleSaveChanges} 
+            className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors disabled:bg-slate-400"
+            disabled={isSaving}
+          >
+            {isSaving ? 'Menyimpan...' : 'Simpan Perubahan Visi & Misi'}
           </button>
         </div>
       )}

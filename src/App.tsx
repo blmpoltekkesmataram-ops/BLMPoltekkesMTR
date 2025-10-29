@@ -15,6 +15,7 @@ import Footer from './components/Footer';
 import Login from './components/Login';
 import AdminToolbar from './components/AdminToolbar';
 import Toast from './components/Toast';
+import { DataProvider } from './contexts/DataContext';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('Beranda');
@@ -80,28 +81,30 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className={`bg-slate-50 text-slate-800 antialiased font-sans ${isLoggedIn ? 'pt-14' : ''}`}>
-      {isLoggedIn && (
-        <AdminToolbar
-          currentUser={currentUser}
-          onLogout={handleLogout}
-          isEditMode={isEditMode}
-          toggleEditMode={toggleEditMode}
+    <DataProvider>
+      <div className={`bg-slate-50 text-slate-800 antialiased font-sans ${isLoggedIn ? 'pt-14' : ''}`}>
+        {isLoggedIn && (
+          <AdminToolbar
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            isEditMode={isEditMode}
+            toggleEditMode={toggleEditMode}
+          />
+        )}
+        <Navbar 
+          currentPage={currentPage} 
+          setPage={setCurrentPage}
+          isLoggedIn={isLoggedIn}
+          onLoginClick={() => setShowLogin(true)}
         />
-      )}
-      <Navbar 
-        currentPage={currentPage} 
-        setPage={setCurrentPage}
-        isLoggedIn={isLoggedIn}
-        onLoginClick={() => setShowLogin(true)}
-      />
-      <main>
-        {renderPage()}
-      </main>
-      <Footer />
-      {showLogin && !isLoggedIn && <Login onLogin={handleLogin} onClose={() => setShowLogin(false)} />}
-      <Toast message={toastMessage} onClear={() => setToastMessage(null)} />
-    </div>
+        <main>
+          {renderPage()}
+        </main>
+        <Footer />
+        {showLogin && !isLoggedIn && <Login onLogin={handleLogin} onClose={() => setShowLogin(false)} />}
+        <Toast message={toastMessage} onClear={() => setToastMessage(null)} />
+      </div>
+    </DataProvider>
   );
 };
 
