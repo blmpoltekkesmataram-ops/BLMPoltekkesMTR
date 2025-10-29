@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
-import Spinner from './Spinner';
 import { ImageItem } from '../data/initialData';
 
 interface GalleryProps {
@@ -82,7 +81,7 @@ const ImageModal: React.FC<{
 
 
 const Gallery: React.FC<GalleryProps> = ({ isEditMode, showToast }) => {
-  const { data, editedData, loading, error, setEditedGallery } = useData();
+  const { editedData, setEditedGallery } = useData();
   const [showModal, setShowModal] = useState(false);
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
   
@@ -142,25 +141,22 @@ const Gallery: React.FC<GalleryProps> = ({ isEditMode, showToast }) => {
       </div>
     );
   };
-  
-  const renderContent = () => {
-    if (loading) {
-      return (
-        <div className="h-96 flex justify-center items-center">
-          <Spinner />
-        </div>
-      );
-    }
 
-    if (error) {
-      return <p className="text-center text-red-500">{error}</p>;
-    }
-    
-    const displayData = isEditMode ? editedData : data;
+  return (
+    <>
+      <SectionWrapper id="galeri" title="Galeri Kegiatan" bgClass="bg-white">
+        {isEditMode && (
+           <div className="text-center mb-10">
+              <EditWrapper className="inline-block">
+                <button onClick={() => handleOpenModal(null)} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors shadow-md">
+                    + Tambah Foto Dokumentasi
+                </button>
+              </EditWrapper>
+          </div>
+        )}
 
-    return (
-       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {displayData?.gallery.map((image) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {editedData?.gallery.map((image) => (
             <div key={image.id} className="relative group">
               <EditWrapper>
                 <div className="overflow-hidden rounded-lg shadow-lg bg-white flex flex-col h-full">
@@ -189,22 +185,6 @@ const Gallery: React.FC<GalleryProps> = ({ isEditMode, showToast }) => {
             </div>
           ))}
         </div>
-    );
-  };
-
-  return (
-    <>
-      <SectionWrapper id="galeri" title="Galeri Kegiatan" bgClass="bg-white">
-        {isEditMode && (
-           <div className="text-center mb-10">
-              <EditWrapper className="inline-block">
-                <button onClick={() => handleOpenModal(null)} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors shadow-md">
-                    + Tambah Foto Dokumentasi
-                </button>
-              </EditWrapper>
-          </div>
-        )}
-        {renderContent()}
       </SectionWrapper>
        {showModal && (
         <ImageModal 

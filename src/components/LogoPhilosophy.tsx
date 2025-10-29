@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
-import Spinner from './Spinner';
 import { LogoPhilosophyData, LogoPhilosophyItem } from '../data/initialData';
 
 interface LogoPhilosophyProps {
@@ -91,7 +90,7 @@ const FlipCard: React.FC<{
 };
 
 const LogoPhilosophy: React.FC<LogoPhilosophyProps> = ({ isEditMode }) => {
-  const { data, editedData, loading, error, setEditedLogoPhilosophy } = useData();
+  const { editedData, setEditedLogoPhilosophy } = useData();
 
   const handleUpdate = (type: 'blm' | 'kabinet', field: keyof LogoPhilosophyItem, value: string | string[]) => {
     if (!editedData) return;
@@ -124,40 +123,20 @@ const LogoPhilosophy: React.FC<LogoPhilosophyProps> = ({ isEditMode }) => {
       </div>
     );
   };
-  
-  if (loading) {
-    return (
-      <SectionWrapper id="logo-philosophy" title="Filosofi Logo" bgClass="bg-white">
-        <div className="h-96 flex justify-center items-center">
-          <Spinner />
-        </div>
-      </SectionWrapper>
-    );
-  }
-
-  if (error || !data || !editedData) {
-    return (
-      <SectionWrapper id="logo-philosophy" title="Filosofi Logo" bgClass="bg-white">
-        <p className="text-center text-red-500">{error || "Data tidak tersedia."}</p>
-      </SectionWrapper>
-    );
-  }
-
-  const displayData = isEditMode ? editedData : data;
 
   return (
     <SectionWrapper id="logo-philosophy" title="Filosofi Logo" bgClass="bg-white">
       <EditWrapper>
         <div className="grid md:grid-cols-2 gap-12">
           <FlipCard
-            cardData={displayData.logoPhilosophy.blm}
+            cardData={editedData.logoPhilosophy.blm}
             isEditMode={isEditMode}
             onTitleChange={(value) => handleUpdate('blm', 'title', value)}
             onDetailsChange={(value) => handleUpdate('blm', 'details', value.split('\n'))}
             onImageChange={handleImageChange('blm')}
           />
           <FlipCard
-            cardData={displayData.logoPhilosophy.kabinet}
+            cardData={editedData.logoPhilosophy.kabinet}
             isEditMode={isEditMode}
             onTitleChange={(value) => handleUpdate('kabinet', 'title', value)}
             onDetailsChange={(value) => handleUpdate('kabinet', 'details', value.split('\n'))}

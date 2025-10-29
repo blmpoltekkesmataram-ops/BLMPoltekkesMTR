@@ -3,7 +3,6 @@ import Hero from './Hero';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
 import { NewsItem, ImageItem } from '../data/initialData';
-import Spinner from './Spinner';
 
 const functions = [
     {
@@ -29,10 +28,10 @@ interface HomeProps {
 }
 
 const Home: React.FC<HomeProps> = ({ setPage, isEditMode }) => {
-    const { data, loading, error } = useData();
+    const { editedData } = useData();
 
-    const latestNews: NewsItem[] = data ? [...data.news].sort((a, b) => b.id - a.id).slice(0, 6) : [];
-    const latestImages: ImageItem[] = data ? [...data.gallery].sort((a, b) => b.id - a.id).slice(0, 6) : [];
+    const latestNews: NewsItem[] = [...editedData.news].sort((a, b) => b.id - a.id).slice(0, 6);
+    const latestImages: ImageItem[] = [...editedData.gallery].sort((a, b) => b.id - a.id).slice(0, 6);
 
     const getTypeClass = (type: NewsItem['type']) => {
         switch (type) {
@@ -40,50 +39,6 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode }) => {
             case 'Pengumuman': return 'bg-yellow-100 text-yellow-800';
             case 'Agenda': return 'bg-green-100 text-green-800';
             default: return 'bg-slate-100 text-slate-800';
-        }
-    };
-    
-    const renderLatestItems = (items: (NewsItem | ImageItem)[], type: 'news' | 'gallery') => {
-        if (loading) return <div className="w-full h-40 flex justify-center items-center"><Spinner /></div>;
-        if (error) return <p className="text-red-500 text-center">Gagal memuat data.</p>;
-        if (items.length === 0) return <p className="text-slate-500 text-center">Belum ada konten.</p>;
-
-        if (type === 'news') {
-             return (items as NewsItem[]).map(item => (
-                <div key={item.id} className="flex-shrink-0 w-80 bg-slate-50 rounded-lg shadow-md p-6 border-l-4 border-brand-gold transform hover:scale-105 transition-transform duration-300">
-                    <div className="flex justify-between items-center mb-2">
-                        <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${getTypeClass(item.type)}`}>
-                            {item.type}
-                        </span>
-                        <p className="text-sm text-slate-500">{item.date}</p>
-                    </div>
-                    <h3 className="font-bold text-brand-blue">{item.title}</h3>
-                </div>
-            ));
-        }
-
-        if (type === 'gallery') {
-            return (
-                <>
-                 {(items as ImageItem[]).map((image) => (
-                    <div key={image.id} className="flex-shrink-0 w-80 h-56 rounded-lg shadow-lg overflow-hidden group">
-                        <img 
-                          src={image.src} 
-                          alt={image.description} 
-                          className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500 ease-in-out"
-                        />
-                    </div>
-                ))}
-                <div 
-                    onClick={() => setPage('Galeri')}
-                    className="flex-shrink-0 w-80 h-56 rounded-lg shadow-lg bg-brand-gold/20 hover:bg-brand-gold/40 flex flex-col items-center justify-center text-center text-brand-blue cursor-pointer transition-colors duration-300 p-4"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                    <h3 className="text-xl font-bold">Lihat Galeri Lengkap</h3>
-                    <p className="text-sm">Jelajahi semua dokumentasi kegiatan kami.</p>
-                </div>
-                </>
-            );
         }
     };
 
@@ -126,7 +81,17 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode }) => {
             {/* Latest News Section */}
             <SectionWrapper id="home-berita" title="Berita & Agenda Terkini" bgClass="bg-white">
                 <div className="flex overflow-x-auto space-x-6 pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                    {renderLatestItems(latestNews, 'news')}
+                    {latestNews.map(item => (
+                        <div key={item.id} className="flex-shrink-0 w-80 bg-slate-50 rounded-lg shadow-md p-6 border-l-4 border-brand-gold transform hover:scale-105 transition-transform duration-300">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${getTypeClass(item.type)}`}>
+                                    {item.type}
+                                </span>
+                                <p className="text-sm text-slate-500">{item.date}</p>
+                            </div>
+                            <h3 className="font-bold text-brand-blue">{item.title}</h3>
+                        </div>
+                    ))}
                 </div>
                 <div className="text-center mt-12">
                     <button onClick={() => setPage('Berita')} className="bg-brand-blue text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-900 transition-colors">
@@ -138,7 +103,23 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode }) => {
             {/* Latest Gallery Section */}
             <SectionWrapper id="home-galeri" title="Galeri Terkini">
                 <div className="flex overflow-x-auto space-x-6 pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                   {renderLatestItems(latestImages, 'gallery')}
+                    {latestImages.map((image) => (
+                        <div key={image.id} className="flex-shrink-0 w-80 h-56 rounded-lg shadow-lg overflow-hidden group">
+                            <img 
+                              src={image.src} 
+                              alt={image.description} 
+                              className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500 ease-in-out"
+                            />
+                        </div>
+                    ))}
+                    <div 
+                        onClick={() => setPage('Galeri')}
+                        className="flex-shrink-0 w-80 h-56 rounded-lg shadow-lg bg-brand-gold/20 hover:bg-brand-gold/40 flex flex-col items-center justify-center text-center text-brand-blue cursor-pointer transition-colors duration-300 p-4"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                        <h3 className="text-xl font-bold">Lihat Galeri Lengkap</h3>
+                        <p className="text-sm">Jelajahi semua dokumentasi kegiatan kami.</p>
+                    </div>
                 </div>
             </SectionWrapper>
 

@@ -8,6 +8,7 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+// Dengan menghapus <React.StrictMode>, efek render ganda akan berhenti.
 root.render(
   <App />
 );

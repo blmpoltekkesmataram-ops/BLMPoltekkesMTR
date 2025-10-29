@@ -1,14 +1,13 @@
 import React from 'react';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
-import Spinner from './Spinner';
 
 interface VisiMisiProps {
   isEditMode: boolean;
 }
 
 const VisiMisi: React.FC<VisiMisiProps> = ({ isEditMode }) => {
-  const { data, editedData, loading, error, setEditedVisiMisi } = useData();
+  const { editedData, setEditedVisiMisi } = useData();
 
   const handleVisiChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!editedData) return;
@@ -17,7 +16,7 @@ const VisiMisi: React.FC<VisiMisiProps> = ({ isEditMode }) => {
   
   const handleMisiChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
      if (!editedData) return;
-     const newMisi = e.target.value.split('\n').filter(line => line.trim() !== '');
+     const newMisi = e.target.value.split('\n');
      setEditedVisiMisi({ ...editedData.visiMisi, misi: newMisi });
   };
   
@@ -32,26 +31,6 @@ const VisiMisi: React.FC<VisiMisiProps> = ({ isEditMode }) => {
       </div>
     );
   };
-
-  if (loading) {
-    return (
-      <SectionWrapper id="visi-misi" title="Visi & Misi" bgClass="bg-white">
-        <div className="h-64 flex justify-center items-center">
-          <Spinner />
-        </div>
-      </SectionWrapper>
-    );
-  }
-
-  if (error) {
-    return (
-      <SectionWrapper id="visi-misi" title="Visi & Misi" bgClass="bg-white">
-        <p className="text-center text-red-500">{error}</p>
-      </SectionWrapper>
-    );
-  }
-
-  const displayData = isEditMode ? editedData : data;
   
   return (
     <SectionWrapper id="visi-misi" title="Visi & Misi" bgClass="bg-white">
@@ -61,12 +40,12 @@ const VisiMisi: React.FC<VisiMisiProps> = ({ isEditMode }) => {
             <h3 className="text-3xl font-bold text-brand-gold mb-4 text-center">Visi</h3>
             {isEditMode ? (
               <textarea 
-                value={displayData?.visiMisi.visi || ''}
+                value={editedData?.visiMisi.visi || ''}
                 onChange={handleVisiChange}
                 className="w-full h-40 bg-white/10 text-white p-2 rounded-md text-lg leading-relaxed text-center italic"
               />
             ) : (
-              <p className="text-lg leading-relaxed text-center italic">{displayData?.visiMisi.visi}</p>
+              <p className="text-lg leading-relaxed text-center italic">{editedData?.visiMisi.visi}</p>
             )}
           </div>
         </EditWrapper>
@@ -75,14 +54,14 @@ const VisiMisi: React.FC<VisiMisiProps> = ({ isEditMode }) => {
             <h3 className="text-3xl font-bold text-brand-blue mb-6 text-center">Misi</h3>
             {isEditMode ? (
               <textarea 
-                value={displayData?.visiMisi.misi.join('\n') || ''}
+                value={editedData?.visiMisi.misi.join('\n') || ''}
                 onChange={handleMisiChange}
                 className="w-full h-48 bg-white text-slate-700 p-2 rounded-md"
                 placeholder="Satu misi per baris"
               />
             ) : (
               <ul className="space-y-4">
-                {displayData?.visiMisi.misi.map((item: string, index: number) => (
+                {editedData?.visiMisi.misi.filter(m => m.trim() !== '').map((item: string, index: number) => (
                   <li key={index} className="flex items-start">
                     <svg className="w-6 h-6 text-brand-gold mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />

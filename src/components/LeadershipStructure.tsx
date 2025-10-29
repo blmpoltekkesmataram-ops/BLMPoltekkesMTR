@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
-import Spinner from './Spinner';
 import { Member, MembersData } from '../data/initialData';
 
 
@@ -160,7 +159,7 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
 
 
 const LeadershipStructure: React.FC<LeadershipStructureProps> = ({ isEditMode }) => {
-    const { data, editedData, loading, error, setEditedLeadership } = useData();
+    const { editedData, setEditedLeadership } = useData();
     const [editingMember, setEditingMember] = useState<Member | null>(null);
 
     const handleEditMember = (member: Member) => {
@@ -192,47 +191,24 @@ const LeadershipStructure: React.FC<LeadershipStructureProps> = ({ isEditMode })
         setEditingMember(null);
     };
 
-    const renderContent = () => {
-        if (loading) {
-            return (
-              <div className="h-96 flex justify-center items-center">
-                <Spinner size="lg" />
-              </div>
-            );
-          }
-      
-        if (error) {
-            return <p className="text-center text-red-500">{error}</p>;
-        }
-        
-        const displayData = isEditMode ? editedData : data;
-
-        if (!displayData) return null;
-
-        return (
-            <div className="max-w-6xl mx-auto">
-                <div className="flex justify-center items-center flex-col">
-                <div className="flex flex-wrap justify-center gap-8">
-                    {displayData.leadership.top.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
-                </div>
-                <ConnectingLine />
-                <div className="flex flex-wrap justify-center gap-8">
-                    {displayData.leadership.mid.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
-                </div>
-                <ConnectingLine />
-                <div className="w-full h-px bg-slate-300"></div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12 w-full mt-4">
-                    {displayData.leadership.commissions.map(commission => <CommissionGroup key={commission.id} coordinator={commission} isEditMode={isEditMode} onEditMember={handleEditMember} />)}
-                </div>
-                </div>
-            </div>
-        );
-    }
-
-
   return (
     <SectionWrapper id="leadership" title="Struktur Kepemimpinan" bgClass="bg-slate-50">
-      {renderContent()}
+        <div className="max-w-6xl mx-auto">
+            <div className="flex justify-center items-center flex-col">
+            <div className="flex flex-wrap justify-center gap-8">
+                {editedData.leadership.top.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
+            </div>
+            <ConnectingLine />
+            <div className="flex flex-wrap justify-center gap-8">
+                {editedData.leadership.mid.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
+            </div>
+            <ConnectingLine />
+            <div className="w-full h-px bg-slate-300"></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12 w-full mt-4">
+                {editedData.leadership.commissions.map(commission => <CommissionGroup key={commission.id} coordinator={commission} isEditMode={isEditMode} onEditMember={handleEditMember} />)}
+            </div>
+            </div>
+        </div>
       {editingMember && (
           <EditMemberModal
             member={editingMember}

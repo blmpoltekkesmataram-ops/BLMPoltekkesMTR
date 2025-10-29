@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
-import Spinner from './Spinner';
 import { NewsItem } from '../data/initialData';
 
 interface NewsProps {
@@ -20,7 +19,7 @@ const getTypeClass = (type: NewsItem['type']) => {
 };
 
 const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
-    const { data, editedData, loading, error, setEditedNews } = useData();
+    const { editedData, setEditedNews } = useData();
     const [showModal, setShowModal] = useState(false);
     const [editingItem, setEditingItem] = useState<NewsItem | null>(null);
     const [formData, setFormData] = useState({ title: '', content: '', type: 'Berita' as NewsItem['type'] });
@@ -28,8 +27,7 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
     const [sortOption, setSortOption] = useState('newest');
     const [filterCategory, setFilterCategory] = useState('Semua');
 
-    const displayData = isEditMode ? editedData : data;
-    const newsItems = displayData?.news || [];
+    const newsItems = editedData?.news || [];
 
     const filteredAndSortedItems = useMemo(() => {
         let items = [...newsItems];
@@ -104,49 +102,6 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
         );
     };
 
-    const renderContent = () => {
-        if (loading) {
-          return (
-            <div className="h-96 flex justify-center items-center">
-              <Spinner />
-            </div>
-          );
-        }
-    
-        if (error) {
-          return <p className="text-center text-red-500">{error}</p>;
-        }
-    
-        return (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredAndSortedItems.map(item => (
-                    <div key={item.id} className="relative">
-                      <EditWrapper>
-                        <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full transform hover:-translate-y-2 transition-transform duration-300 ease-in-out">
-                            <div className="p-6 flex-grow">
-                                <div className="flex justify-between items-start mb-2">
-                                    <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${getTypeClass(item.type)}`}>
-                                        {item.type}
-                                    </span>
-                                    <p className="text-sm text-slate-500">{item.date}</p>
-                                </div>
-                                <h3 className="text-xl font-bold text-brand-blue mb-2">{item.title}</h3>
-                                <p className="text-slate-600 text-sm leading-relaxed">{item.content}</p>
-                            </div>
-                            {isEditMode && isLoggedIn && (
-                                <div className="bg-slate-50 p-3 flex justify-end gap-2 border-t">
-                                    <button onClick={() => handleOpenModal(item)} className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
-                                    <button onClick={() => handleDelete(item.id)} className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors">Hapus</button>
-                                </div>
-                            )}
-                        </div>
-                      </EditWrapper>
-                    </div>
-                ))}
-            </div>
-        );
-    }
-
     return (
         <SectionWrapper id="berita" title="Berita & Pengumuman">
             {isEditMode && isLoggedIn && (
@@ -180,7 +135,32 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
                 </div>
             </div>
 
-            {renderContent()}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredAndSortedItems.map(item => (
+                    <div key={item.id} className="relative">
+                      <EditWrapper>
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full transform hover:-translate-y-2 transition-transform duration-300 ease-in-out">
+                            <div className="p-6 flex-grow">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${getTypeClass(item.type)}`}>
+                                        {item.type}
+                                    </span>
+                                    <p className="text-sm text-slate-500">{item.date}</p>
+                                </div>
+                                <h3 className="text-xl font-bold text-brand-blue mb-2">{item.title}</h3>
+                                <p className="text-slate-600 text-sm leading-relaxed">{item.content}</p>
+                            </div>
+                            {isEditMode && isLoggedIn && (
+                                <div className="bg-slate-50 p-3 flex justify-end gap-2 border-t">
+                                    <button onClick={() => handleOpenModal(item)} className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
+                                    <button onClick={() => handleDelete(item.id)} className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors">Hapus</button>
+                                </div>
+                            )}
+                        </div>
+                      </EditWrapper>
+                    </div>
+                ))}
+            </div>
 
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 z-[101] flex items-center justify-center p-4">

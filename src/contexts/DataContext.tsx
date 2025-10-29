@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { api } from '../services/api';
-import { PageData, VisiMisiData, ImageItem, NewsItem, MembersData, LogoPhilosophyData } from '../data/initialData';
+import { PageData, VisiMisiData, ImageItem, NewsItem, MembersData, LogoPhilosophyData, initialData } from '../data/initialData';
 
 interface DataContextType {
-    data: PageData | null;
-    editedData: PageData | null;
+    data: PageData;
+    editedData: PageData;
     loading: boolean;
     isSaving: boolean;
     error: string | null;
@@ -21,23 +21,33 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [data, setData] = useState<PageData | null>(null);
-    const [editedData, setEditedData] = useState<PageData | null>(null);
+    // Initialize with default data to prevent flicker. API fetch will hydrate this.
+    const [data, setData] = useState<PageData>(initialData);
+    const [editedData, setEditedData] = useState<PageData>(JSON.parse(JSON.stringify(initialData)));
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
-        setLoading(true);
+        // This is now a background hydration, so we don't set loading to true at the start
         setError(null);
         try {
             const result = await api.getData();
-            setData(result);
-            setEditedData(JSON.parse(JSON.stringify(result))); // Deep copy for safe editing
+            // Ensure result is a valid object before setting
+            if (result && typeof result === 'object' && Object.keys(result).length > 0) {
+              setData(result);
+              setEditedData(JSON.parse(JSON.stringify(result))); // Deep copy for safe editing
+            } else {
+              // If API returns empty or invalid data, stick with initialData
+              console.warn("API returned empty or invalid data. Using initialData as fallback.");
+              setData(initialData);
+              setEditedData(JSON.parse(JSON.stringify(initialData)));
+            }
         } catch (err: any) {
             setError(err.message || 'An unknown error occurred.');
-            setData(null);
-            setEditedData(null);
+            // On error, revert to initial data instead of showing a blank page
+            setData(initialData);
+            setEditedData(JSON.parse(JSON.stringify(initialData)));
         } finally {
             setLoading(false);
         }
@@ -54,7 +64,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsSaving(true);
         try {
             await api.updateAllData(editedData);
-            await fetchData(); // Refetch to sync state with the server
+            // After saving, the new data is the source of truth
+            setData(JSON.parse(JSON.stringify(editedData))); 
         } catch (e) {
             console.error("Gagal menyimpan semua perubahan:", e);
             throw e; 
@@ -64,27 +75,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     
     const setEditedHeroBackground = (backgroundImage: string) => {
-        setEditedData(prev => prev ? { ...prev, hero: { ...prev.hero, backgroundImage } } : null);
+        setEditedData(prev => ({ ...prev, hero: { ...prev.hero, backgroundImage } }));
     };
 
     const setEditedVisiMisi = (visiMisi: VisiMisiData) => {
-        setEditedData(prev => prev ? { ...prev, visiMisi } : null);
+        setEditedData(prev => ({ ...prev, visiMisi }));
     };
     
     const setEditedGallery = (gallery: ImageItem[]) => {
-        setEditedData(prev => prev ? { ...prev, gallery } : null);
+        setEditedData(prev => ({ ...prev, gallery }));
     };
 
     const setEditedNews = (news: NewsItem[]) => {
-        setEditedData(prev => prev ? { ...prev, news } : null);
+        setEditedData(prev => ({ ...prev, news }));
     };
 
     const setEditedLeadership = (leadership: MembersData) => {
-        setEditedData(prev => prev ? { ...prev, leadership } : null);
+        setEditedData(prev => ({ ...prev, leadership }));
     };
 
     const setEditedLogoPhilosophy = (logoPhilosophy: LogoPhilosophyData) => {
-        setEditedData(prev => prev ? { ...prev, logoPhilosophy } : null);
+        setEditedData(prev => ({ ...prev, logoPhilosophy }));
     };
 
     const value = {
