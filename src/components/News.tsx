@@ -1,8 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
-import { NewsItem } from '../data/initialData';
 
+interface NewsItem {
+  id: number;
+  title: string;
+  content: string;
+  type: 'Berita' | 'Pengumuman' | 'Agenda';
+  date: string;
+}
 interface NewsProps {
   isLoggedIn: boolean;
   isEditMode: boolean;
@@ -19,15 +25,21 @@ const getTypeClass = (type: NewsItem['type']) => {
 };
 
 const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
-    const { editedData, setEditedNews } = useData();
+    const { data, addNewsItem, updateNewsItem, deleteNewsItem } = useData();
+    const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
     const [showModal, setShowModal] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [editingItem, setEditingItem] = useState<NewsItem | null>(null);
     const [formData, setFormData] = useState({ title: '', content: '', type: 'Berita' as NewsItem['type'] });
     
     const [sortOption, setSortOption] = useState('newest');
     const [filterCategory, setFilterCategory] = useState('Semua');
 
-    const newsItems = editedData?.news || [];
+    useEffect(() => {
+      if(data?.news) {
+        setNewsItems(data.news);
+      }
+    }, [data]);
 
     const filteredAndSortedItems = useMemo(() => {
         let items = [...newsItems];
@@ -61,33 +73,35 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
         setFormData({ title: '', content: '', type: 'Berita' });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!editedData) return;
-
-        if (editingItem) {
-            const updatedItems = editedData.news.map(item => 
-                item.id === editingItem.id ? { ...item, ...formData, date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) } : item
-            );
-            setEditedNews(updatedItems);
-            showToast("Perubahan item disimpan sementara!");
-        } else {
-            const newItem: NewsItem = { 
-                id: Date.now(), 
-                ...formData, 
-                date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-            };
-            setEditedNews([newItem, ...editedData.news]);
-            showToast("Item baru ditambahkan sementara!");
+        setIsSaving(true);
+        try {
+            if (editingItem) {
+                await updateNewsItem({ ...editingItem, ...formData });
+                showToast("Item berhasil diperbarui!");
+            } else {
+                await addNewsItem(formData);
+                showToast("Item baru berhasil dipublikasikan!");
+            }
+            handleCloseModal();
+        } catch (error) {
+            console.error("Failed to save news item:", error);
+            showToast("Gagal menyimpan. Coba lagi.");
+        } finally {
+            setIsSaving(false);
         }
-        handleCloseModal();
     };
 
-    const handleDelete = (id: number) => {
-        if (!editedData) return;
+    const handleDelete = async (id: number) => {
         if (window.confirm('Apakah Anda yakin ingin menghapus item ini?')) {
-            setEditedNews(editedData.news.filter(item => item.id !== id));
-            showToast("Item ditandai untuk dihapus.");
+            try {
+                await deleteNewsItem(id);
+                showToast("Item berhasil dihapus.");
+            } catch (error) {
+                console.error("Failed to delete news item:", error);
+                showToast("Gagal menghapus. Coba lagi.");
+            }
         }
     };
 
@@ -104,7 +118,7 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
 
     return (
         <SectionWrapper id="berita" title="Berita & Pengumuman">
-            {isEditMode && isLoggedIn && (
+            {isLoggedIn && (
                 <div className="text-center mb-8">
                   <EditWrapper className="inline-block">
                     <button onClick={() => handleOpenModal(null)} className="bg-brand-gold text-brand-blue font-bold py-2 px-6 rounded-lg hover:bg-yellow-400 transition-colors duration-300 shadow-md">
@@ -150,7 +164,7 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
                                 <h3 className="text-xl font-bold text-brand-blue mb-2">{item.title}</h3>
                                 <p className="text-slate-600 text-sm leading-relaxed">{item.content}</p>
                             </div>
-                            {isEditMode && isLoggedIn && (
+                            {isEditMode && (
                                 <div className="bg-slate-50 p-3 flex justify-end gap-2 border-t">
                                     <button onClick={() => handleOpenModal(item)} className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
                                     <button onClick={() => handleDelete(item.id)} className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors">Hapus</button>
@@ -185,8 +199,8 @@ const News: React.FC<NewsProps> = ({ isLoggedIn, isEditMode, showToast }) => {
                                 </select>
                             </div>
                             <div className="text-right pt-4">
-                                <button type="submit" className="bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors duration-300">
-                                    {editingItem ? 'Terapkan Perubahan' : 'Tambahkan'}
+                                <button type="submit" disabled={isSaving} className="bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors duration-300 disabled:bg-slate-400">
+                                    {isSaving ? 'Menyimpan...' : (editingItem ? 'Simpan Perubahan' : 'Publikasikan')}
                                 </button>
                             </div>
                         </form>

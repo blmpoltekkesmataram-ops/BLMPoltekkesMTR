@@ -15,17 +15,18 @@ import Footer from './components/Footer';
 import Login from './components/Login';
 import AdminToolbar from './components/AdminToolbar';
 import Toast from './components/Toast';
-import { DataProvider, useData } from './contexts/DataContext';
+import { useData } from './contexts/DataContext';
+import Spinner from './components/Spinner';
 
-const AppContent: React.FC = () => {
+const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('Beranda');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const { saveAllChanges, isSaving, refetch } = useData();
+  
+  const { loading, error, refetch } = useData();
 
   const handleLogin = (user: string) => {
     setIsLoggedIn(true);
@@ -37,32 +38,12 @@ const AppContent: React.FC = () => {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
-    setIsEditMode(false);
+    setIsEditMode(false); // Exit edit mode on logout
     showToast('Anda telah logout.');
   };
 
   const toggleEditMode = () => {
-    if (isEditMode) {
-      // When exiting, discard any unsaved changes by refetching original data
-      const confirmExit = window.confirm("Apakah Anda yakin ingin keluar? Perubahan yang belum disimpan akan hilang.");
-      if (confirmExit) {
-        refetch();
-        setIsEditMode(false);
-      }
-    } else {
-      setIsEditMode(true);
-    }
-  };
-
-  const handleSaveAll = async () => {
-    try {
-        await saveAllChanges();
-        showToast('Semua perubahan berhasil disimpan!');
-        setIsEditMode(false); // Exit edit mode after successful save
-    } catch (e) {
-        console.error(e);
-        showToast('Gagal menyimpan perubahan. Silakan coba lagi.');
-    }
+    setIsEditMode(prev => !prev);
   };
   
   const showToast = (message: string) => {
@@ -70,23 +51,52 @@ const AppContent: React.FC = () => {
   };
 
   const renderPage = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center h-screen">
+          <div className="text-center">
+            <Spinner size="lg" />
+            <p className="mt-4 text-slate-600 font-semibold">Memuat data...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+       return (
+        <div className="flex justify-center items-center h-screen">
+          <div className="text-center bg-red-50 p-8 rounded-lg shadow-md max-w-md">
+            <h3 className="text-xl font-bold text-red-700">Terjadi Kesalahan</h3>
+            <p className="mt-2 text-slate-600">{error}</p>
+            <button
+              onClick={refetch}
+              className="mt-6 bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors"
+            >
+              Coba Lagi
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+
     switch (currentPage) {
       case 'Beranda':
-        return <Home setPage={setCurrentPage} isEditMode={isEditMode} />;
+        return <Home setPage={setCurrentPage} isEditMode={isEditMode} showToast={showToast} />;
       case 'Profil':
         return (
           <>
             <Profile />
-            <VisiMisi isEditMode={isEditMode} />
+            <VisiMisi isEditMode={isEditMode} showToast={showToast} />
             <Tupoksi />
-            <LogoPhilosophy isEditMode={isEditMode} />
+            <LogoPhilosophy isEditMode={isEditMode} showToast={showToast} />
           </>
         );
       case 'Struktur BLM':
         return (
           <>
             <Structure />
-            <LeadershipStructure isEditMode={isEditMode} />
+            <LeadershipStructure isEditMode={isEditMode} showToast={showToast} />
           </>
         );
       case 'Alur Ormawa':
@@ -98,44 +108,34 @@ const AppContent: React.FC = () => {
       case 'Galeri':
         return <Gallery isEditMode={isEditMode} showToast={showToast} />;
       default:
-        return <Home setPage={setCurrentPage} isEditMode={isEditMode} />;
+        return <Home setPage={setCurrentPage} isEditMode={isEditMode} showToast={showToast} />;
     }
   };
 
   return (
-      <div className={`bg-slate-50 text-slate-800 antialiased font-sans ${isLoggedIn ? 'pt-14' : ''}`}>
-        {isLoggedIn && (
-          <AdminToolbar
-            currentUser={currentUser}
-            onLogout={handleLogout}
-            isEditMode={isEditMode}
-            toggleEditMode={toggleEditMode}
-            onSaveAll={handleSaveAll}
-            isSaving={isSaving}
-          />
-        )}
-        <Navbar 
-          currentPage={currentPage} 
-          setPage={setCurrentPage}
-          isLoggedIn={isLoggedIn}
-          onLoginClick={() => setShowLogin(true)}
+    <div className={`bg-slate-50 text-slate-800 antialiased font-sans ${isLoggedIn ? 'pt-14' : ''}`}>
+      {isLoggedIn && (
+        <AdminToolbar
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          isEditMode={isEditMode}
+          toggleEditMode={toggleEditMode}
         />
-        <main>
-          {renderPage()}
-        </main>
-        <Footer />
-        {showLogin && !isLoggedIn && <Login onLogin={handleLogin} onClose={() => setShowLogin(false)} />}
-        <Toast message={toastMessage} onClear={() => setToastMessage(null)} />
-      </div>
+      )}
+      <Navbar 
+        currentPage={currentPage} 
+        setPage={setCurrentPage}
+        isLoggedIn={isLoggedIn}
+        onLoginClick={() => setShowLogin(true)}
+      />
+      <main>
+        {renderPage()}
+      </main>
+      <Footer />
+      {showLogin && !isLoggedIn && <Login onLogin={handleLogin} onClose={() => setShowLogin(false)} />}
+      <Toast message={toastMessage} onClear={() => setToastMessage(null)} />
+    </div>
   );
 };
-
-const App: React.FC = () => {
-  return (
-    <DataProvider>
-      <AppContent />
-    </DataProvider>
-  )
-}
 
 export default App;

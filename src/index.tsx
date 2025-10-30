@@ -1,6 +1,8 @@
+import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { DataProvider } from './contexts/DataContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -8,7 +10,10 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-// Dengan menghapus <React.StrictMode>, efek render ganda akan berhenti.
 root.render(
-  <App />
+  <React.StrictMode>
+    <DataProvider>
+      <App />
+    </DataProvider>
+  </React.StrictMode>
 );

@@ -1,12 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
-import { Member, MembersData } from '../data/initialData';
+import { fileToBase64 } from '../utils/fileUtils';
 
-
+interface Member {
+    id: string;
+    role: string;
+    name: string;
+    imageUrl: string;
+    members?: Member[];
+    tupoksi?: string[];
+    skills?: string[];
+}
 interface LeadershipStructureProps {
   isEditMode: boolean;
+  showToast: (message: string) => void;
 }
+
+interface MembersData {
+    top: Member[];
+    mid: Member[];
+    commissions: Member[];
+}
+
+const initialMembersData: MembersData = { top: [], mid: [], commissions: [] };
+
 
 const MemberCard: React.FC<{ member: Member; size?: 'sm' | 'md'; isEditMode: boolean; onEdit: () => void; }> = ({ member, size = 'md', isEditMode, onEdit }) => {
     const { role, name, imageUrl, tupoksi, skills } = member;
@@ -25,7 +43,7 @@ const MemberCard: React.FC<{ member: Member; size?: 'sm' | 'md'; isEditMode: boo
     );
 
     return (
-        <div className={`relative group [perspective:1000px] ${s.card}`} onClick={isEditMode ? onEdit : undefined} style={{ cursor: isEditMode ? 'pointer' : 'default' }}>
+        <div className={`relative group [perspective:1000px] ${s.card}`} onClick={isEditMode ? onEdit : undefined}>
             <div className={`relative w-full h-full [transform-style:preserve-3d] transition-transform duration-700 ease-in-out ${!isEditMode && 'group-hover:[transform:rotateY(180deg)]'}`}>
                 {/* Front Side */}
                 <div className="absolute w-full h-full [backface-visibility:hidden] bg-white text-center p-3 rounded-lg shadow-lg flex flex-col items-center justify-center">
@@ -71,15 +89,7 @@ const CommissionGroup: React.FC<{ coordinator: Member; isEditMode: boolean; onEd
     </div>
 );
 
-const fileToBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
-
-const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member) => void; onClose: () => void; }> = ({ member, onSave, onClose }) => {
+const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member, newImageFile?: File) => void; onClose: () => void; isSaving: boolean; }> = ({ member, onSave, onClose, isSaving }) => {
   const [formData, setFormData] = useState(member);
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
 
@@ -100,19 +110,8 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
     }
   }
 
-  const handleSave = async () => {
-    let finalData = { ...formData };
-    if (newImageFile) {
-        try {
-            const base64 = await fileToBase64(newImageFile);
-            finalData.imageUrl = base64;
-        } catch (err) {
-            console.error(err);
-            alert("Gagal memproses gambar.");
-            return;
-        }
-    }
-    onSave(finalData);
+  const handleSave = () => {
+    onSave(formData, newImageFile || undefined);
   }
 
   return (
@@ -150,7 +149,9 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
             )}
         </div>
         <div className="text-right pt-6 mt-4 border-t">
-            <button onClick={handleSave} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors">Terapkan Perubahan</button>
+            <button onClick={handleSave} disabled={isSaving} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors disabled:bg-slate-400">
+                {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+            </button>
         </div>
       </div>
     </div>
@@ -158,62 +159,86 @@ const EditMemberModal: React.FC<{ member: Member; onSave: (updatedMember: Member
 };
 
 
-const LeadershipStructure: React.FC<LeadershipStructureProps> = ({ isEditMode }) => {
-    const { editedData, setEditedLeadership } = useData();
+const LeadershipStructure: React.FC<LeadershipStructureProps> = ({ isEditMode, showToast }) => {
+    const { data, updateLeadership } = useData();
+    const [members, setMembers] = useState<MembersData>(initialMembersData);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    
+    useEffect(() => {
+        if (data?.leadership) {
+            setMembers(data.leadership);
+        }
+    }, [data]);
 
     const handleEditMember = (member: Member) => {
         setEditingMember(member);
     };
 
-    const handleSaveMember = (updatedMember: Member) => {
-        if (!editedData) return;
+    const handleSaveMember = async (updatedMember: Member, newImageFile?: File) => {
+        setIsSaving(true);
+        let finalMember = { ...updatedMember };
 
-        const updateRecursive = (memberList: Member[]): Member[] => {
-            return memberList.map(m => {
-                if (m.id === updatedMember.id) {
-                    return updatedMember;
-                }
-                if (m.members) {
-                    return { ...m, members: updateRecursive(m.members) };
-                }
-                return m;
-            });
-        };
-        
-        const newLeadershipData: MembersData = {
-            top: updateRecursive(editedData.leadership.top),
-            mid: updateRecursive(editedData.leadership.mid),
-            commissions: updateRecursive(editedData.leadership.commissions)
-        };
-        
-        setEditedLeadership(newLeadershipData);
-        setEditingMember(null);
+        try {
+            if (newImageFile) {
+                const base64 = await fileToBase64(newImageFile);
+                finalMember.imageUrl = base64;
+            }
+
+            const updateRecursive = (memberList: Member[]): Member[] => {
+                return memberList.map(m => {
+                    if (m.id === finalMember.id) {
+                        return finalMember;
+                    }
+                    if (m.members) {
+                        return { ...m, members: updateRecursive(m.members) };
+                    }
+                    return m;
+                });
+            };
+
+            const updatedStructure = {
+                top: updateRecursive(members.top),
+                mid: updateRecursive(members.mid),
+                commissions: updateRecursive(members.commissions)
+            };
+            
+            await updateLeadership(updatedStructure);
+            setEditingMember(null);
+            showToast("Data anggota berhasil diperbarui!");
+
+        } catch (error) {
+            console.error("Failed to save member data:", error);
+            showToast("Gagal menyimpan data anggota.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
   return (
     <SectionWrapper id="leadership" title="Struktur Kepemimpinan" bgClass="bg-slate-50">
-        <div className="max-w-6xl mx-auto">
-            <div className="flex justify-center items-center flex-col">
-            <div className="flex flex-wrap justify-center gap-8">
-                {editedData.leadership.top.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
-            </div>
-            <ConnectingLine />
-            <div className="flex flex-wrap justify-center gap-8">
-                {editedData.leadership.mid.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
-            </div>
-            <ConnectingLine />
-            <div className="w-full h-px bg-slate-300"></div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12 w-full mt-4">
-                {editedData.leadership.commissions.map(commission => <CommissionGroup key={commission.id} coordinator={commission} isEditMode={isEditMode} onEditMember={handleEditMember} />)}
-            </div>
-            </div>
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-center items-center flex-col">
+          <div className="flex flex-wrap justify-center gap-8">
+             {members.top.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
+          </div>
+          <ConnectingLine />
+          <div className="flex flex-wrap justify-center gap-8">
+            {members.mid.map(member => <MemberCard key={member.id} member={member} isEditMode={isEditMode} onEdit={() => handleEditMember(member)} />)}
+          </div>
+          <ConnectingLine />
+          <div className="w-full h-px bg-slate-300"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12 w-full mt-4">
+            {members.commissions.map(commission => <CommissionGroup key={commission.id} coordinator={commission} isEditMode={isEditMode} onEditMember={handleEditMember} />)}
+          </div>
         </div>
+      </div>
       {editingMember && (
           <EditMemberModal
             member={editingMember}
             onSave={handleSaveMember}
             onClose={() => setEditingMember(null)}
+            isSaving={isSaving}
           />
       )}
     </SectionWrapper>

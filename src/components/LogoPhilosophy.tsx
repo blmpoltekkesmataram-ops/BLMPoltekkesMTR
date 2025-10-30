@@ -1,32 +1,34 @@
-import React, { useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
-import { LogoPhilosophyData, LogoPhilosophyItem } from '../data/initialData';
+import { fileToBase64 } from '../utils/fileUtils';
+import { LogoPhilosophyData } from '../data/initialData';
 
 interface LogoPhilosophyProps {
   isEditMode: boolean;
+  showToast: (message: string) => void;
 }
 
-const fileToBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
+const initialPhilosophyData: LogoPhilosophyData = {
+  blm: { title: '', imageUrl: '', details: [] },
+  kabinet: { title: '', imageUrl: '', details: [] },
+};
 
 const FlipCard: React.FC<{
-  cardData: LogoPhilosophyItem;
+  title: string;
+  imageUrl: string;
+  details: string[];
   isEditMode: boolean;
-  onTitleChange: (value: string) => void;
-  onDetailsChange: (value: string) => void;
+  tempTitle: string;
+  onTempTitleChange: (value: string) => void;
+  tempDetails: string;
+  onTempDetailsChange: (value: string) => void;
   onImageChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-}> = ({ cardData, isEditMode, onTitleChange, onDetailsChange, onImageChange }) => {
-    const { title, imageUrl, details } = cardData;
+}> = ({ title, imageUrl, details, isEditMode, tempTitle, onTempTitleChange, tempDetails, onTempDetailsChange, onImageChange }) => {
     const imageInputRef = useRef<HTMLInputElement>(null);
 
     const triggerImageInput = (e: React.MouseEvent) => {
-        e.stopPropagation();
+        e.stopPropagation(); // Prevent card from flipping when in edit mode
         if (isEditMode) {
             imageInputRef.current?.click();
         }
@@ -53,10 +55,10 @@ const FlipCard: React.FC<{
           {isEditMode ? (
             <input
               type="text"
-              value={title}
+              value={tempTitle}
               onChange={(e) => {
                 e.stopPropagation();
-                onTitleChange(e.target.value);
+                onTempTitleChange(e.target.value);
               }}
               onClick={(e) => e.stopPropagation()}
               className="text-2xl font-bold text-brand-blue text-center bg-slate-100 border border-slate-300 rounded-md w-full p-2"
@@ -68,11 +70,11 @@ const FlipCard: React.FC<{
         </div>
         {/* Back Side */}
         <div className="absolute w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-brand-blue text-white p-6 rounded-lg shadow-xl flex flex-col justify-center">
-           <h4 className="font-bold text-brand-gold text-xl mb-4 border-b border-brand-gold/50 pb-2">{title}</h4>
+           <h4 className="font-bold text-brand-gold text-xl mb-4 border-b border-brand-gold/50 pb-2">{isEditMode ? tempTitle : title}</h4>
           {isEditMode ? (
              <textarea
-              value={details.join('\n')}
-              onChange={(e) => onDetailsChange(e.target.value)}
+              value={tempDetails}
+              onChange={(e) => onTempDetailsChange(e.target.value)}
               className="w-full h-full bg-white/10 text-white p-2 rounded-md text-sm"
               placeholder="Satu poin per baris"
             />
@@ -89,28 +91,71 @@ const FlipCard: React.FC<{
   );
 };
 
-const LogoPhilosophy: React.FC<LogoPhilosophyProps> = ({ isEditMode }) => {
-  const { editedData, setEditedLogoPhilosophy } = useData();
+const LogoPhilosophy: React.FC<LogoPhilosophyProps> = ({ isEditMode, showToast }) => {
+  const { data, updateLogoPhilosophy } = useData();
+  const [philosophyData, setPhilosophyData] = useState<LogoPhilosophyData>(initialPhilosophyData);
+  const [tempBlmTitle, setTempBlmTitle] = useState('');
+  const [tempKabinetTitle, setTempKabinetTitle] = useState('');
+  const [tempBlmDetails, setTempBlmDetails] = useState('');
+  const [tempKabinetDetails, setTempKabinetDetails] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleUpdate = (type: 'blm' | 'kabinet', field: keyof LogoPhilosophyItem, value: string | string[]) => {
-    if (!editedData) return;
-    const newData: LogoPhilosophyData = {
-        ...editedData.logoPhilosophy,
-        [type]: { ...editedData.logoPhilosophy[type], [field]: value }
-    };
-    setEditedLogoPhilosophy(newData);
+  useEffect(() => {
+    if (data?.logoPhilosophy) {
+      setPhilosophyData(data.logoPhilosophy);
+      setTempBlmTitle(data.logoPhilosophy.blm.title);
+      setTempKabinetTitle(data.logoPhilosophy.kabinet.title);
+      setTempBlmDetails(data.logoPhilosophy.blm.details.join('\n'));
+      setTempKabinetDetails(data.logoPhilosophy.kabinet.details.join('\n'));
+    }
+  }, [data]);
+
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    try {
+        const newData = {
+            blm: { 
+                ...philosophyData.blm, 
+                title: tempBlmTitle,
+                details: tempBlmDetails.split('\n').filter(line => line.trim() !== '') 
+            },
+            kabinet: { 
+                ...philosophyData.kabinet, 
+                title: tempKabinetTitle,
+                details: tempKabinetDetails.split('\n').filter(line => line.trim() !== '') 
+            }
+        };
+        await updateLogoPhilosophy(newData);
+        showToast("Filosofi Logo berhasil diperbarui!");
+    } catch (error) {
+        console.error("Failed to save philosophy data:", error);
+        showToast("Gagal menyimpan perubahan. Coba lagi.");
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const handleImageChange = (type: 'blm' | 'kabinet') => async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      setIsSaving(true);
       try {
-        const newImageUrl = await fileToBase64(event.target.files[0]);
-        handleUpdate(type, 'imageUrl', newImageUrl);
+        const base64 = await fileToBase64(file);
+        const newData = {
+          ...philosophyData,
+          [type]: { ...philosophyData[type], imageUrl: base64 }
+        };
+        await updateLogoPhilosophy(newData);
+        showToast(`Logo ${type === 'blm' ? 'BLM' : 'Kabinet'} berhasil diubah!`);
       } catch (error) {
-        alert('Gagal memproses gambar.');
+        console.error(`Failed to update ${type} logo:`, error);
+        showToast(`Gagal mengubah logo ${type === 'blm' ? 'BLM' : 'Kabinet'}.`);
+      } finally {
+        setIsSaving(false);
       }
     }
   };
+
 
   const EditWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     if (!isEditMode) return <>{children}</>;
@@ -124,26 +169,42 @@ const LogoPhilosophy: React.FC<LogoPhilosophyProps> = ({ isEditMode }) => {
     );
   };
 
+
   return (
     <SectionWrapper id="logo-philosophy" title="Filosofi Logo" bgClass="bg-white">
       <EditWrapper>
         <div className="grid md:grid-cols-2 gap-12">
           <FlipCard
-            cardData={editedData.logoPhilosophy.blm}
+            title={philosophyData.blm.title}
+            imageUrl={philosophyData.blm.imageUrl}
+            details={philosophyData.blm.details}
             isEditMode={isEditMode}
-            onTitleChange={(value) => handleUpdate('blm', 'title', value)}
-            onDetailsChange={(value) => handleUpdate('blm', 'details', value.split('\n'))}
+            tempTitle={tempBlmTitle}
+            onTempTitleChange={setTempBlmTitle}
+            tempDetails={tempBlmDetails}
+            onTempDetailsChange={setTempBlmDetails}
             onImageChange={handleImageChange('blm')}
           />
           <FlipCard
-            cardData={editedData.logoPhilosophy.kabinet}
+            title={philosophyData.kabinet.title}
+            imageUrl={philosophyData.kabinet.imageUrl}
+            details={philosophyData.kabinet.details}
             isEditMode={isEditMode}
-            onTitleChange={(value) => handleUpdate('kabinet', 'title', value)}
-            onDetailsChange={(value) => handleUpdate('kabinet', 'details', value.split('\n'))}
+            tempTitle={tempKabinetTitle}
+            onTempTitleChange={setTempKabinetTitle}
+            tempDetails={tempKabinetDetails}
+            onTempDetailsChange={setTempKabinetDetails}
             onImageChange={handleImageChange('kabinet')}
           />
         </div>
       </EditWrapper>
+      {isEditMode && (
+        <div className="text-center mt-8">
+          <button onClick={handleSaveChanges} disabled={isSaving} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors disabled:bg-slate-400">
+            {isSaving ? 'Menyimpan...' : 'Simpan Perubahan Filosofi'}
+          </button>
+        </div>
+      )}
     </SectionWrapper>
   );
 };

@@ -1,26 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
-import { ImageItem } from '../data/initialData';
+import { fileToBase64 } from '../utils/fileUtils';
 
 interface GalleryProps {
   isEditMode: boolean;
   showToast: (message: string) => void;
 }
 
-const fileToBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
+interface ImageItem {
+  id: number;
+  src: string;
+  description: string;
+}
 
 const ImageModal: React.FC<{
   image: Partial<ImageItem> | null;
   onSave: (data: Partial<ImageItem>, file?: File) => void;
   onClose: () => void;
-}> = ({ image, onSave, onClose }) => {
+  isSaving: boolean;
+}> = ({ image, onSave, onClose, isSaving }) => {
   const [description, setDescription] = useState(image?.description || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState(image?.src || 'https://via.placeholder.com/600x400.png?text=Pilih+Gambar');
@@ -35,25 +34,24 @@ const ImageModal: React.FC<{
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!image?.id && !imageFile) {
-        alert("Mohon pilih file gambar untuk item baru.");
+    if (!image && !imageFile) {
+        alert("Mohon pilih file gambar.");
         return;
     }
-    const dataToSave: Partial<ImageItem> = { id: image?.id, description };
-    onSave(dataToSave, imageFile || undefined);
+    onSave({ id: image?.id, description }, imageFile || undefined);
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[101] flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg relative animate-fade-in-down" style={{animationDuration: '0.3s'}}>
         <button onClick={onClose} className="absolute top-4 right-4 text-2xl text-slate-500 hover:text-slate-800">&times;</button>
-        <h3 className="text-2xl font-bold text-brand-blue mb-6">{image?.id ? 'Edit Foto & Keterangan' : 'Tambah Foto Baru'}</h3>
+        <h3 className="text-2xl font-bold text-brand-blue mb-6">{image ? 'Edit Foto & Keterangan' : 'Tambah Foto Baru'}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700">Pratinjau Gambar</label>
             <img src={previewUrl} alt="Preview" className="mt-1 w-full h-48 object-cover rounded-md bg-slate-100"/>
             <label htmlFor="imageFile" className="cursor-pointer mt-2 inline-block text-sm font-medium text-brand-blue hover:text-brand-gold">
-                {image?.id ? 'Ganti Gambar' : 'Pilih Gambar'}
+                {image ? 'Ganti Gambar' : 'Pilih Gambar'}
             </label>
             <input type="file" id="imageFile" accept="image/*" onChange={handleFileChange} className="hidden" />
           </div>
@@ -69,8 +67,8 @@ const ImageModal: React.FC<{
             ></textarea>
           </div>
           <div className="text-right pt-4">
-            <button type="submit" className="bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors duration-300">
-              {image?.id ? 'Terapkan Perubahan' : 'Tambahkan'}
+            <button type="submit" disabled={isSaving} className="bg-brand-blue text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-900 transition-colors duration-300 disabled:bg-slate-400">
+              {isSaving ? 'Menyimpan...' : (image ? 'Simpan Perubahan' : 'Tambahkan')}
             </button>
           </div>
         </form>
@@ -81,9 +79,17 @@ const ImageModal: React.FC<{
 
 
 const Gallery: React.FC<GalleryProps> = ({ isEditMode, showToast }) => {
-  const { editedData, setEditedGallery } = useData();
+  const { data, addGalleryImage, updateGalleryImage, deleteGalleryImage } = useData();
+  const [images, setImages] = useState<ImageItem[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
+  
+  useEffect(() => {
+    if (data?.gallery) {
+      setImages(data.gallery);
+    }
+  }, [data]);
   
   const handleOpenModal = (image: ImageItem | null) => {
     setEditingImage(image);
@@ -95,41 +101,50 @@ const Gallery: React.FC<GalleryProps> = ({ isEditMode, showToast }) => {
     setEditingImage(null);
   };
 
-  const handleSaveImage = async (imageData: Partial<ImageItem>, file?: File) => {
-    if (!editedData) return;
-    
-    if (editingImage) { // Editing existing image
-        let imageUrl = editingImage.src;
+  const handleSaveImage = async (imgData: Partial<ImageItem>, file?: File) => {
+    setIsSaving(true);
+    try {
+        let imageUrl = editingImage?.src;
         if (file) {
             imageUrl = await fileToBase64(file);
         }
-        const newGallery = editedData.gallery.map(img => 
-            img.id === editingImage.id 
-                ? { ...img, src: imageUrl, description: imageData.description || '' } 
-                : img
-        );
-        setEditedGallery(newGallery);
-        showToast("Perubahan foto disimpan sementara.");
-    } else { // Adding new image
-        if (!file) return;
-        const newImage: ImageItem = {
-            id: Date.now(),
-            src: await fileToBase64(file),
-            description: imageData.description || ''
-        };
-        const newGallery = [newImage, ...editedData.gallery];
-        setEditedGallery(newGallery);
-        showToast("Foto baru ditambahkan sementara.");
+
+        if (!imageUrl) {
+            throw new Error("Image source is missing.");
+        }
+
+        if (editingImage) {
+            await updateGalleryImage({
+                ...editingImage,
+                src: imageUrl,
+                description: imgData.description || '',
+            });
+            showToast("Foto berhasil diperbarui!");
+        } else {
+            await addGalleryImage({
+                src: imageUrl,
+                description: imgData.description || '',
+            });
+            showToast("Foto berhasil ditambahkan!");
+        }
+        handleCloseModal();
+    } catch (error) {
+        console.error("Failed to save image:", error);
+        showToast("Gagal menyimpan gambar. Coba lagi.");
+    } finally {
+        setIsSaving(false);
     }
-    handleCloseModal();
   };
   
-  const handleDeleteImage = (id: number) => {
-    if (!editedData) return;
-    if (window.confirm('Apakah Anda yakin ingin menghapus foto ini? Perubahan akan disimpan saat Anda menekan "Simpan Semua".')) {
-        const newGallery = editedData.gallery.filter(img => img.id !== id);
-        setEditedGallery(newGallery);
-        showToast("Foto ditandai untuk dihapus.");
+  const handleDeleteImage = async (id: number) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus foto ini?')) {
+      try {
+        await deleteGalleryImage(id);
+        showToast("Foto berhasil dihapus!");
+      } catch (error) {
+        console.error("Failed to delete image:", error);
+        showToast("Gagal menghapus foto. Coba lagi.");
+      }
     }
   };
 
@@ -156,7 +171,7 @@ const Gallery: React.FC<GalleryProps> = ({ isEditMode, showToast }) => {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {editedData?.gallery.map((image) => (
+          {images.map((image) => (
             <div key={image.id} className="relative group">
               <EditWrapper>
                 <div className="overflow-hidden rounded-lg shadow-lg bg-white flex flex-col h-full">
@@ -191,6 +206,7 @@ const Gallery: React.FC<GalleryProps> = ({ isEditMode, showToast }) => {
             image={editingImage}
             onClose={handleCloseModal}
             onSave={handleSaveImage}
+            isSaving={isSaving}
         />
       )}
     </>

@@ -2,7 +2,13 @@ import React from 'react';
 import Hero from './Hero';
 import SectionWrapper from './SectionWrapper';
 import { useData } from '../contexts/DataContext';
-import { NewsItem, ImageItem } from '../data/initialData';
+
+interface NewsItem {
+  id: number;
+  title: string;
+  type: 'Berita' | 'Pengumuman' | 'Agenda';
+  date: string;
+}
 
 const functions = [
     {
@@ -25,13 +31,16 @@ const functions = [
 interface HomeProps {
     setPage: (page: string) => void;
     isEditMode: boolean;
+    showToast: (message: string) => void;
 }
 
-const Home: React.FC<HomeProps> = ({ setPage, isEditMode }) => {
-    const { editedData } = useData();
+const Home: React.FC<HomeProps> = ({ setPage, isEditMode, showToast }) => {
+    const { data } = useData();
 
-    const latestNews: NewsItem[] = [...editedData.news].sort((a, b) => b.id - a.id).slice(0, 6);
-    const latestImages: ImageItem[] = [...editedData.gallery].sort((a, b) => b.id - a.id).slice(0, 6);
+    // Use slice to get only the latest items, and sort news by ID (timestamp) to ensure recency
+    const latestNews = data?.news ? [...data.news].sort((a, b) => b.id - a.id).slice(0, 6) : [];
+    const latestImages = data?.gallery ? [...data.gallery].sort((a, b) => b.id - a.id).slice(0, 6) : [];
+
 
     const getTypeClass = (type: NewsItem['type']) => {
         switch (type) {
@@ -44,7 +53,7 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode }) => {
 
     return (
         <>
-            <Hero isEditMode={isEditMode} />
+            <Hero isEditMode={isEditMode} showToast={showToast} />
 
             {/* Welcome Section */}
              <section className="py-16 sm:py-20 bg-white">
@@ -122,6 +131,7 @@ const Home: React.FC<HomeProps> = ({ setPage, isEditMode }) => {
                     </div>
                 </div>
             </SectionWrapper>
+
 
             {/* Aspiration CTA Section */}
             <section className="py-16 sm:py-20 bg-brand-blue">
